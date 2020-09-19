@@ -56,7 +56,7 @@ end
 
 function Paq.install() map_pkgs(install_pkg) end
 
-function Paq.update() map_pkgs(install_pkg) end
+function Paq.update() map_pkgs(update_pkg) end
 
 function Paq.auto()
     map_pkgs(install_pkg)
