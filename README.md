@@ -9,14 +9,15 @@ Paq is a simple package manager for neovim. It's usable, but still a work in pro
 
 ### Usage
 
-In your init.vim, you can write something like:
+In your `init.vim`, you can write something like:
 
 ```
 lua << EOF
 
-paq 'lervag/vimtex'
 paq 'itchyny/lightline.vim'
-paq {'neoclide/coc.nvim', branch = 'release'} -- Call like a table when passing options
+-- Use braces when passing options
+paq{'lervag/vimtex', opt=true}
+paq{'neoclide/coc.nvim', branch='release'} 
 
 EOF
 ```
@@ -27,11 +28,12 @@ EOF
 |--------|---------|------------------------------|
 | opt    | boolean | Is the package optional?     |
 | url    | string  | URL of the remote repository |
-| branch | string  | branch of the repository     |
+| branch | string  | Branch of the repository     |
 
 ### TODO
 
 - [ ] Use `jobs`
 - [ ] Add rm/clean command
 - [ ] Write docs
+- [ ] Rewrite this readme
 
