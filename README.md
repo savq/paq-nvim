@@ -23,14 +23,15 @@ EOF
 
 ### Options
 
-| Option | Type    | Description                                                |
-|--------|---------|------------------------------------------------------------|
-| opt    | boolean | Is the package optional?                                   |
-| url    | string  | url of the remote repository (useful for non-GitHub repos) |
-| branch | string  | branch of the repository                                   |
+| Option | Type    |                              |
+|--------|---------|------------------------------|
+| opt    | boolean | Is the package optional?     |
+| url    | string  | URL of the remote repository |
+| branch | string  | branch of the repository     |
 
 ### TODO
 
 - [ ] Use `jobs`
 - [ ] Add rm/clean command
+- [ ] Write docs
 
