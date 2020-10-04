@@ -3,30 +3,35 @@
 local Paq = {} -- Module
 local packages = {} -- Table of 'name':{options} pairs
 
--- Magic constants
-local GITHUB = 'https://github.com/'
+-- Constants
 local PATH = vim.fn.stdpath('data') .. '/site/pack/paq/'
+local GITHUB = 'https://github.com/'
+local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
 
 -- Some helper functions
 
-local function is_pkg_dir(dirname)
-    return vim.fn.isdirectory(dirname) ~= 0
+local function get_dir(name, opt)
+    local dir = PATH .. (opt and 'opt/' or 'start/') .. name
+    if vim.fn.isdirectory(dir) ~= 0 then
+        return dir
+    end
+    return nil
 end
 
-local function call_git(str)
-    r = os.execute('git '..str..'&>/dev/null')
+local function call_git(str) -- Make async
+    r = os.execute('git ' .. str .. '&>/dev/null')
     return r == 0
 end
 
 local function print_err(operation, args)
-    print('Failed to '..operation..': '..args)
+    print('Failed to ' .. operation .. ': '..args)
 end
 
 -- Clone repo if it doesn't exist locally
-function install_pkg(name, args)
-    local dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
-    local b = args.branch and (' -b ' .. args.branch .. ' --single-branch ') or ' '
-    if not is_pkg_dir(dir) then
+local function install_pkg(name, args)
+    local dir = get_dir(name, args.opt)
+    local b = args.branch and (' --single-branch -b ' .. args.branch) or ' '
+    if not dir then
         ok = call_git('clone ' .. args.url .. b .. dir)
         if not ok then
             print_err('install', name)
@@ -36,9 +41,9 @@ end
 
 -- Pull changes from remote
 local function update_pkg(name, args)
-    local dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
-    if is_pkg_dir(dir) then
-        ok = call_git('-C '.. dir .. ' pull')
+    local dir = get_dir(name, args.opt)
+    if dir then
+        ok = call_git(' -C ' .. dir .. ' pull')
         if not ok then
             print_err('update', name)
         end
@@ -46,7 +51,7 @@ local function update_pkg(name, args)
 end
 
 local function map_pkgs(fn)
-    if not fn then return -1 end
+    if not fn then return end
     for name, args in pairs(packages) do
         fn(name, args)
     end
@@ -58,12 +63,6 @@ function Paq.install() map_pkgs(install_pkg) end
 
 function Paq.update() map_pkgs(update_pkg) end
 
-function Paq.auto()
-    map_pkgs(install_pkg)
-    map_pkgs(update)
-end
-
--- Add a package to the packages table
 function Paq.paq(args)
     local a = type(args)
     if a == 'string' then
@@ -71,7 +70,7 @@ function Paq.paq(args)
     elseif a ~= 'table' then
         return
     end
-    local reponame = args[1]:match'^[%w-]+/([%w-_.]+)$' --is this regex correct?
+    local reponame = args[1]:match(REPO_RE)
     packages[reponame] = {
         opt    = args.opt or false,
         url    = args.url or GITHUB .. args[1] .. '.git',
