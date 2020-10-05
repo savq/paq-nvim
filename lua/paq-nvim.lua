@@ -1,5 +1,3 @@
--- TODO Jobs
-
 local Paq = {} -- Module
 local packages = {} -- Table of 'name':{options} pairs
 
@@ -11,13 +9,14 @@ local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
 -- Some helper functions
 
 local function get_dir(name, opt)
-    local dir = PATH .. (opt and 'opt/' or 'start/') .. name
-    if vim.fn.isdirectory(dir) ~= 0 then
-        return dir
-    end
-    return nil
+    return PATH .. (opt and 'opt/' or 'start/') .. name
 end
 
+local function is_pkg_dir(dir)
+    return vim.fn.isdirectory(dir) ~= 0
+end
+
+-- Replace with contents of test.lua
 local function call_git(str) -- Make async
     r = os.execute('git ' .. str .. '&>/dev/null')
     return r == 0
@@ -30,8 +29,8 @@ end
 -- Clone repo if it doesn't exist locally
 local function install_pkg(name, args)
     local dir = get_dir(name, args.opt)
-    local b = args.branch and (' --single-branch -b ' .. args.branch) or ' '
-    if not dir then
+    local b = args.branch and (' -b ' .. args.branch .. ' --single-branch ') or ' '
+    if not is_pkg_dir(dir) then
         ok = call_git('clone ' .. args.url .. b .. dir)
         if not ok then
             print_err('install', name)
@@ -42,7 +41,7 @@ end
 -- Pull changes from remote
 local function update_pkg(name, args)
     local dir = get_dir(name, args.opt)
-    if dir then
+    if is_pkg_dir(dir) then
         ok = call_git(' -C ' .. dir .. ' pull')
         if not ok then
             print_err('update', name)
