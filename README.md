@@ -1,11 +1,14 @@
 # Paq
 
-Paq is a simple package manager for neovim. It's usable, but still a work in progress.
+Paq is a simple Neovim package manager written in Lua.
+
 
 ### Features
 
-- Less than 100 lines of Lua
-- Works with non-GitHub plug-ins
+- __small__ 100 LOC
+- __fast__ Commands run concurrently. Call `:PaqUpdate` and carry on
+- __simple__ Paq does one thing well: it downloads and updates packages
+
 
 ### Usage
 
@@ -22,6 +25,7 @@ paq{'neoclide/coc.nvim', branch='release'}
 EOF
 ```
 
+
 ### Options
 
 | Option | Type    |                              |
@@ -32,8 +36,7 @@ EOF
 
 ### TODO
 
-- [ ] Use `jobs`
-- [ ] Add rm/clean command
 - [ ] Write docs
-- [ ] Rewrite this readme
+    - helptags
+- [ ] Commands
 
