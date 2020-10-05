@@ -16,37 +16,53 @@ local function is_pkg_dir(dir)
     return vim.fn.isdirectory(dir) ~= 0
 end
 
--- Replace with contents of test.lua
-local function call_git(str) -- Make async
-    r = os.execute('git ' .. str .. '&>/dev/null')
-    return r == 0
+local function print_err(operation, args)
+    print('Paq failed to ' .. operation .. ' ' .. args)
 end
 
-local function print_err(operation, args)
-    print('Failed to ' .. operation .. ': '..args)
+local function print_success(operation, args)
+    print('Paq: ' .. operation .. ' ' .. args)
+end
+
+local function call_git(action, name, ...)
+    local args = {...}
+    local handle
+    handle = vim.loop.spawn('git',
+        {args=args},
+        vim.schedule_wrap(
+            function(code, signal)
+                if code ~= 0 then
+                    print_err(action, name)
+                else
+                    print_success(action, name)
+                end
+                handle:close()
+            end
+        )
+    )
 end
 
 -- Clone repo if it doesn't exist locally
 local function install_pkg(name, args)
     local dir = get_dir(name, args.opt)
-    local b = args.branch and (' -b ' .. args.branch .. ' --single-branch ') or ' '
     if not is_pkg_dir(dir) then
-        ok = call_git('clone ' .. args.url .. b .. dir)
-        if not ok then
-            print_err('install', name)
+        local ok = true
+        if args.branch then
+            call_git('install', name, 'clone', args.url, '-b',  args.branch, '--single-branch', dir)
+        else
+            call_git('install', name, 'clone', args.url, dir)
         end
     end
 end
+
 
 -- Pull changes from remote
 local function update_pkg(name, args)
     local dir = get_dir(name, args.opt)
     if is_pkg_dir(dir) then
-        ok = call_git(' -C ' .. dir .. ' pull')
-        if not ok then
-            print_err('update', name)
-        end
+        call_git('update', name, '-C', dir, 'pull')
     end
+
 end
 
 local function map_pkgs(fn)
