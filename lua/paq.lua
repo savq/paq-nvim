@@ -63,7 +63,7 @@ local function map_pkgs(fn)
 end
 
 local function clean_pkgs(dir)
-    local handle = vim.loop.fs_scandir(PATH .. dir)
+    local handle = vim.loop.fs_scandir(dir)
     local name, ok
     while handle do
         name = vim.loop.fs_scandir_next(handle)
@@ -111,6 +111,6 @@ end
 return {
     install = function() map_pkgs(install_pkg) end,
     update  = function() map_pkgs(update_pkg) end,
-    clean   = function() clean_pkgs('start/'); clean_pkgs('opt/') end,
+    clean   = function() clean_pkgs(PATH..'start/'); clean_pkgs(PATH..'opt/') end,
     paq     = paq
 }
