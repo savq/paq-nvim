@@ -14,12 +14,12 @@ local function is_pkg_dir(dir)
     return vim.fn.isdirectory(dir) ~= 0
 end
 
-local function print_err(operation, args)
-    print('Paq failed to ' .. operation .. ' ' .. args)
-end
-
-local function print_success(operation, args)
-    print('Paq: ' .. operation .. ' ' .. args)
+local function print_res(success, operation, args)
+    if success then
+        print('Paq: ' .. operation .. ' ' .. args)
+    else
+        print('Paq failed to ' .. operation .. ' ' .. args)
+    end
 end
 
 local function call_git(action, name, ...)
@@ -29,11 +29,7 @@ local function call_git(action, name, ...)
         {args=args},
         vim.schedule_wrap(
             function(code, signal)
-                if code == 0 then
-                    print_success(action, name)
-                else
-                    print_err(action, name)
-                end
+                print_res(code == 0, action, name)
                 handle:close()
             end
         )
@@ -67,17 +63,15 @@ local function map_pkgs(fn)
 end
 
 local function clean_pkgs(dir)
-    local handle = vim.loop.fs_scandir(dir)
+    local handle = vim.loop.fs_scandir(PATH .. dir)
     local name, ok
     while handle do
         name = vim.loop.fs_scandir_next(handle)
         if not name then break end
         if not packages[name] then -- Package isn't listed
             ok = rmdir_rec(dir .. name)
-            if not ok then
-                print_err('uninstall', name)
-                return
-            end
+            print_res(ok, 'uninstall', name)
+            if not ok then return end
         end
     end
 end
@@ -117,6 +111,6 @@ end
 return {
     install = function() map_pkgs(install_pkg) end,
     update  = function() map_pkgs(update_pkg) end,
-    clean  = function() clean_pkgs('start/'); clean_pkgs('opt/') end,
+    clean   = function() clean_pkgs('start/'); clean_pkgs('opt/') end,
     paq     = paq
 }
