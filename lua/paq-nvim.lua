@@ -1,5 +1,5 @@
 -- Constants
-local PATH = vim.fn.stdpath('data') .. '/site/pack/paq/'
+local PATH = vim.fn.stdpath('data') .. '/site/pack/paqs/'
 local GITHUB = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
 
@@ -68,6 +68,40 @@ local function map_pkgs(fn)
     end
 end
 
+local function clean_pkgs(dir)
+    local handle = vim.loop.fs_scandir(dir)
+    local name, ok
+    while handle do
+        name = vim.loop.fs_scandir_next(handle)
+        if not name then break end
+        if not packages[name] then -- Package isn't listed
+            ok = rmdir_rec(dir .. name)
+            if not ok then
+                print('error')
+                return
+            end
+        end
+    end
+end
+
+function rmdir_rec(dir) -- FIXME: Find alternative to this function
+    local handle = vim.loop.fs_scandir(dir)
+    local name, ok
+    while handle do
+        name, t = vim.loop.fs_scandir_next(handle)
+        if not name then break end
+        child = dir .. '/' .. name
+        if t == 'directory' then
+            ok = rmdir_rec(child)
+        else
+            ok = vim.loop.fs_unlink(child)
+        end
+        if not ok then return end
+    end
+    return vim.loop.fs_rmdir(dir)
+end
+
+
 local function paq(args)
     local a = type(args)
     if a == 'string' then
@@ -86,5 +120,6 @@ end
 return {
     install = function() map_pkgs(install_pkg) end,
     update  = function() map_pkgs(update_pkg) end,
+    clean  = function() clean_pkgs('start/'); clean_pkgs('opt/') end,
     paq     = paq
 }
