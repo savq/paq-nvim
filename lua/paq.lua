@@ -6,8 +6,6 @@ local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
 -- Table of 'name':{options} pairs
 local packages = {}
 
--- Some helper functions
-
 local function get_dir(name, opt)
     return PATH .. (opt and 'opt/' or 'start/') .. name
 end
@@ -77,7 +75,7 @@ local function clean_pkgs(dir)
         if not packages[name] then -- Package isn't listed
             ok = rmdir_rec(dir .. name)
             if not ok then
-                print('error')
+                print_err('uninstall', name)
                 return
             end
         end
@@ -100,7 +98,6 @@ function rmdir_rec(dir) -- FIXME: Find alternative to this function
     end
     return vim.loop.fs_rmdir(dir)
 end
-
 
 local function paq(args)
     local a = type(args)
