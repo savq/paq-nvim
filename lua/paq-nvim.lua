@@ -100,7 +100,13 @@ local function paq(args)
     elseif a ~= 'table' then
         return
     end
+
     local reponame = args[1]:match(REPO_RE)
+    if not reponame then
+        print_res(false, 'parse', args[1])
+        return
+    end
+
     packages[reponame] = {
         opt    = args.opt or false,
         url    = args.url or GITHUB .. args[1] .. '.git',
