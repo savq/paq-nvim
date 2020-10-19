@@ -13,7 +13,7 @@ CONTENTS                                                        *paq-contents*
   Options                                                 |paq-options|
   Commands                                                |paq-commands|
   Paq directory                                           |paq-directory|
-  Transitioning from other package managers               |paq-other-managers|
+  Moving from other package managers                      |paq-moving|
   Contributing                                            |paq-contributing|
 
 
@@ -51,6 +51,7 @@ To get started with Paq:
  1. Import the `paq-nvim` module to your Lua configuration, and bind the `paq`
     function:
  >
+    vim.cmd['packadd paq-nvim']
     local Paq = require'paq-nvim' -- Module
     local paq = Paq.paq           -- Function
 <
@@ -180,13 +181,53 @@ Paq's directory, since |Paq.clean| could delete them.
 
 
 ==============================================================================
-TRANSITIONING FROM OTHER PACKAGE MANAGERS                     *paq-transition*
+MOVING FROM OTHER PACKAGE MANAGERS                                *paq-moving*
 
-TODO
+Paq was written with Neovim users who prefer to use Lua (over vimL).
+If you need backwards compatibility with Vim 8, Consider using Minpac;
+If you need backwards compatibility with Vim 7, consider using Vim-plug
+(also consider upgrading). If you don't need any backwards compatibility,
+keep reading.
 
-From pathogen
-From plug
-From minpac
+Vim-plug~
+
+Paq's syntax is heavily inspired by Vim-plug's, so what you would write in a
+vimscript file like this:
+>
+    " VimL + Plug
+    call plug#begin('~/.vim/plugged')
+    Plug 'neoclide/coc.nvim', {'branch':'release'}
+    call plug#end()
+<
+Would be written in a lua file like this:
+>
+    -- Lua + Paq
+    vim.cmd['packadd paq-nvim']
+    local paq = require'paq-nvim'.paq
+    paq {'neoclide/coc.nvim', branch='release'}
+<
+Plug puts packages in it's own custom directory, you can see where calling:
+>
+    :echo stdpath('data') .. '/plugged'
+>
+
+If have a lot of packages, you can move them manually. Both Plug and Paq
+handle packages as git repos, so there shouldn't be any issues.
+You will have to split your packages into `start` and `opt` packages,
+Paq can't do that for you. See |paq-dir| and |packages| for more information.
+
+
+Minpac~
+
+Minpac does use the |packages| feature. so it migrating from one to the other
+should be very straightforward. Assuming all your Minpac packages are in
+`pack/minpac`, you can just rename the directory to `paqs`, like so:
+>
+    $ cd ~/.local/share/nvim/site/pack
+    $ mv minpac paqs
+<
+
+
 
 ==============================================================================
 CONTRIBUTING                                                *paq-contributing*
@@ -199,7 +240,7 @@ All development for this package happens on GitHub. When posting an issue
 always try to be specific. The more detailed the description the better.
 Also keep in mind:
 
-TITLES~
+Titles~
 
 When writing the titles, make the intent clear.
 
@@ -212,8 +253,7 @@ When writing the titles, make the intent clear.
 
 - For questions: Self explanatory, write it as a question. `Can Paq do foo?` .
 
-
-BODY OF THE ISSUE~
+Body of the issue~
 
 - For bugs, be sure to include the steps necessary to reproduce the issue,
   and a minimal working example.
