@@ -5,7 +5,7 @@ Paq is a Neovim package manager written in Lua.
 ## Features
 
 - __Simple__: Easy to use and configure
-- __Fast__:   Install and updates packages concurrently using libuv
+- __Fast__:   Installs and updates packages concurrently using Nvim's event-loop
 - __Small__:  Around 100 LOC
 
 
@@ -49,17 +49,17 @@ Paq can also import packages from websites other than GitHub.com
 Remember to use braces when passing options.
 Also keep in mind that Paq doesn't generate helptags automatically.
 To generate helptags after installing a plugin,
-run `:helptags <plugin>` or just `:helptags ALL`.
+just run `:helptags ALL`.
 
 
 ## Commands
 
 - `PaqInstall`: Install all plugins listed in your configuration.
 - `PaqUpdate`: Update all packages already on your system (it won't implicitly install them).
-- `PaqClean`: Remove all packages that aren't listed on your configuration.
+- `PaqClean`: Remove all packages that aren't listed on your configuration^(\*).
 
-If you have plugins that aren't managed by Paq,
-you probably shouldn't put them on Paq's directory (`pack/paqs/`).
+\*If you have plugins that aren't managed by Paq,
+you probably shouldn't put them on Paq's directory.
 
 
 ## Options
