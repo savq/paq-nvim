@@ -1,0 +1,207 @@
+*paq-nvim.txt*    For Neovim version 0.?    Last change: 2020-10-18
+
+Author: Sergio Alejandro Vargas    <savargasqu+paq@unal.edu.co>
+
+
+==============================================================================
+CONTENTS                                                        *paq-contents*
+
+    Introduction                                            |paq-introduction|
+        Features                                            |paq-features|
+    Usage                                                   |paq-usage|
+    Lua module                                              |paq-lua-module|
+    Options                                                 |paq-options|
+    Commands                                                |paq-commands|
+    Paq directory                                           |paq-directory|
+
+TODO
+  Transitioning from other package managers
+  Contributing
+
+
+==============================================================================
+INTRODUCTION                                                *paq-introduction*
+
+
+Paq is a Neovim package manager. It can install, update and remove packages
+from any valid git repository, and it includes familiar shorthand for
+GitHub repositories.
+
+Paq is written in Lua; it uses the |lua-loop| API to install and update
+packages asynchronously; and it stores packages in |packpath| directories.
+
+Paq is for Neovim users who prefer to use Lua as their configuration language.
+It was written to be a wrapper around existing Neovim features, and to have
+a simple and familiar interface for listing packages in Lua.
+
+------------------------------------------------------------------------------
+FEATURES                                                        *paq-features*
+
+
+- Easy to use and configure
+
+- Fast installation and updating using |lua-loop|
+
+- Small implementation, around 100 LOC
+
+
+==============================================================================
+USAGE                                                              *paq-usage*
+
+To get started with Paq:
+
+ 1. Import the `paq-nvim` module to your Lua configuration, and bind the `paq`
+    function:
+ >
+    local Paq = require'paq-nvim' -- Module
+    local paq = Paq.paq           -- Function
+<
+
+ 2. Call the `paq` function with the name of a package repository, for example:
+>
+    paq 'lervag/vimtex'
+<
+
+ 3. Run the `:PaqInstall` command.
+
+ 4. Run `:helptags ALL` to generate the helptags for newly installed packages.
+
+That's it!
+
+
+==============================================================================
+PAQ LUA MODULE                                                *paq-lua-module*
+
+The Paq module exports only four functions. Assuming the module is imported
+as `Paq`, we have:
+
+
+|Paq.paq()|                                                        *Paq.paq()*
+
+  Add a package to Paq's (internal) list. the paq function can take a table or
+  a string. When a table is passed, the first value has to be a string with
+  the name of the repository, like: `'<GitHub-username>/<repository-name>'`.
+  The other key-value pairs in the table have to be named explicitly,
+  see |paq-options|. If only a string is passed, it works as if it was the
+  first value of the table, and all other options will be set to their default
+  values.
+
+  Note: Lua can elide parentheses when passing a table or a string to a
+  function, so you can always call `paq` without parentheses.
+
+
+|Paq.install()|                                                *Paq.install()*
+
+  Install all packages listed on your configuration, if a package is already
+  installed, the command skips it.
+
+
+|Paq.update()|                                                  *Paq.update()*
+
+  Update the installed packages listed on your configuration. If a package
+  hasn't been installed with |PaqInstall|, the command skips it.
+
+
+|Paq.clean()|                                                    *Paq.clean()*
+
+  Remove packages that are on |paq-dir|, but aren't listed in your
+  configuration.
+
+
+==============================================================================
+PAQ OPTIONS                                                      *paq-options*
+
+When adding a package using the `paq` function, you can pass a table
+with the following options:
+
+`branch`
+  A string with the name of a branch of the git repository.
+  If set, Paq will only download that specific branch
+  (using git's `--single-branch ` flag).
+
+  Default value: `nil`
+
+
+`opt`
+  A boolean indicating whether the package is optional or not.
+  If set, the package will be in the optional packages directory
+  See |pack-add|.
+
+  Default value: `false`
+
+`url`
+  A string indicating the URL of the git repository. This allows Paq to
+  download packages from any website, however, for convenience, if not set,
+  Paq will try to find the repository on GitHub.com
+
+  Default value: `'https://github.com/'..'<GitHub-username>/<repository-name>'`
+
+
+Note: These options don't need to be in a particular order, as long as the
+name of the repository is the first thing on the table.
+
+
+Example:
+
+The language client `coc.nvim` recommends installing and using the
+release branch of their repo. To do that, we can set the branch option:
+>
+    paq {'neoclide/coc.nvim', branch='release'}
+<
+
+
+==============================================================================
+COMMANDS                                                        *paq-commands*
+
+Paq defines only three commands, these commands are just aliases to Paq's
+functions with the same name, making it easier to call the functions on
+demand.
+
+*PaqInstall*
+    same as |Paq.install()|
+
+*PaqUpdate*
+    same as |Paq.update()|
+
+*PaqClean*
+    same as |Paq.clean()|
+
+
+==============================================================================
+PAQ DIRECTORY                                                  *paq-directory*
+                                                                     *paq-dir*
+
+Paq installs packages using Neovim's |packages| convention, which itself
+follows the XDG Base Directory specification. You can find the directory
+where Paq installs packages by running the command:
+>
+    :echo stdpath("data") .. '/site/pack/paqs'
+<
+If you have packages that aren't managed by Paq, you shouldn't put them on
+Paq's directory, since |Paq.clean| could delete them.
+
+
+==============================================================================
+TRANSITIONING FROM OTHER PACKAGE MANAGERS                     *paq-transition*
+
+TODO
+
+From pathogen
+From plug
+From minpac
+
+==============================================================================
+CONTRIBUTING                                                *paq-contributing*
+
+Paq is small because my own needs as a neovim user are pretty simple,
+but that doesn't mean I'm against adding features.
+If you have suggestions, write an issue!
+
+TODO
+
+Issues -> affirmation
+Enhancements -> imperative
+Questions -> questions
+
+==============================================================================
+ vim:tw=78:ts=8:noet:ft=help:norl:
