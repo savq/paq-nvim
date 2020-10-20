@@ -1,4 +1,5 @@
 *paq-nvim.txt*  Package manager for Neovim version 0.5  Last change: 2020-10-20
+*paq-nvim*
 
 Author: Sergio Alejandro Vargas    <savargasqu+paq@unal.edu.co>
 
@@ -9,7 +10,7 @@ CONTENTS                                                        *paq-contents*
   Introduction                                            |paq-introduction|
     Features                                              |paq-features|
   Usage                                                   |paq-usage|
-  Lua module                                              |paq-lua-module|
+  Functions and Commands                                  |paq-commands|
   Package options                                         |paq-options|
   Commands                                                |paq-commands|
   Paq directory                                           |paq-directory|
@@ -70,13 +71,14 @@ That's it!
 
 
 ==============================================================================
-PAQ LUA MODULE                                                *paq-lua-module*
+FUNCTIONS AND COMMANDS                                          *paq-commands*
+                                                               *paq-functions*
 
-The Paq module exports only four functions. Assuming the module is imported
-as `Paq`, we have:
+The Paq module exports four functions. Three of these have a command alias,
+making it easier to call the functions on demand. Assuming the module is
+imported as `Paq`, we have:
 
-
-|Paq.paq()|                                                        *Paq.paq()*
+|Paq.paq|                                                            *Paq.paq*
 
   Add a package to Paq's (internal) list. The paq function can take a table or
   a string. When a table is passed, the first value has to be a string with
@@ -90,28 +92,31 @@ as `Paq`, we have:
   function, so you can always call `paq` without parentheses.
 
 
-|Paq.install()|                                                *Paq.install()*
+|Paq.install|                                                    *Paq.install*
+                                                               *:PaqInstall*
 
   Install all packages listed on your configuration, if a package is already
   installed, the function ignores it.
 
 
-|Paq.update()|                                                  *Paq.update()*
+|Paq.update|                                                      *Paq.update*
+                                                                *:PaqUpdate*
 
   Update the installed packages listed on your configuration. If a package
   hasn't been installed with |PaqInstall|, the function ignores it.
 
 
-|Paq.clean()|                                                    *Paq.clean()*
+|Paq.clean|                                                        *Paq.clean*
+                                                                 *:PaqClean*
 
-  Remove packages that are on |paq-dir|, but aren't listed in your
+  Remove packages that are on |paq-directory|, but aren't listed in your
   configuration.
 
 
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
 
-When adding a package using the `paq` function, you can pass a table with
+When adding a package using the |Paq.paq| function, you can pass a table with
 some named options. These options don't need to be in a particular order,
 as long as the name of the repository is the first thing on the table.
 
@@ -134,7 +139,7 @@ The options are the following:
 
 `url`
   A string indicating the URL of the git repository. This allows Paq to
-  download packages from any website, however, for convenience, if not set,
+  download packages from any website; however, for convenience, if not set,
   Paq will try to find the repository on GitHub.com.
 
   Default value: `'https://github.com/'..'<GitHub-username>/<repository-name>'`
@@ -151,25 +156,7 @@ we could call `paq` like:
 
 
 ==============================================================================
-COMMANDS                                                        *paq-commands*
-
-Paq defines only three commands, these commands are just aliases to Paq's
-functions with the same name, making it easier to call the functions on
-demand.
-
-*PaqInstall*
-    same as |Paq.install()|
-
-*PaqUpdate*
-    same as |Paq.update()|
-
-*PaqClean*
-    same as |Paq.clean()|
-
-
-==============================================================================
 PAQ DIRECTORY                                                  *paq-directory*
-                                                                     *paq-dir*
 
 Paq installs packages using Nvim's |packages| convention, which itself
 follows the XDG Base Directory specification. You can find the directory
@@ -199,12 +186,12 @@ Vim-plug~
 Vim-plug puts packages in it's own custom directory, you can see where calling:
 >
     :echo stdpath('data') .. '/plugged'
->
-
+<
 If have a lot of packages, you can move them manually. Both Vim-plug and Paq
 handle packages as git repositories, so there shouldn't be any issues.
 You will have to split your packages into `start` and `opt` packages,
-Paq can't do that for you. See |paq-dir| and |packages| for more information.
+Paq can't do that for you. See |paq-directory| and |packages| for more
+information.
 
 Paq's syntax is heavily inspired by Vim-plug's, so what you would write in a
 VimL file like this:
@@ -225,7 +212,6 @@ Would be written in a lua file like this:
 
     paq {'neoclide/coc.nvim', branch='release'}
 <
-
 The only noticeable differences are that braces also enclose the name of the
 repository, options don't need quotes, and options use an equals sign instead
 of a colon.
@@ -240,7 +226,6 @@ you can just rename the directory to `paqs`, like so:
     $ cd ~/.local/share/nvim/site/pack
     $ mv minpac paqs
 <
-
 What you write in your vimL configuration:
 >
     " vimL + minpac
@@ -259,7 +244,6 @@ Would be written in Lua like:
 <
 
 
-
 ==============================================================================
 CONTRIBUTING                                                *paq-contributing*
 
@@ -276,10 +260,10 @@ Also keep in mind the following:
 Bugs~
 
 Write the title as an statement:
-`Paq isn't doing foo` or `Paq is doing bar instead of foo`
+`Paq isn't doing foo` or `Paq does bar instead of foo`
 
-In the body, be sure to include the
-steps necessary to reproduce the issue, and a minimal working example.
+In the body, be sure to include the steps necessary to reproduce the issue,
+and a minimal working example.
 
 
 Feature requests~
