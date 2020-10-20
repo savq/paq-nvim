@@ -9,6 +9,11 @@ Paq is a Neovim package manager written in Lua.
 - __Small__:  Around 100 LOC
 
 
+## Requirements
+
+- neovim 0.5
+- git
+
 ## Installation
 
 Clone this repository:

@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim version 0.5  Last change: 2020-10-18
+*paq-nvim.txt*  Package manager for Neovim version 0.5  Last change: 2020-10-20
 
 Author: Sergio Alejandro Vargas    <savargasqu+paq@unal.edu.co>
 
