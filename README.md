@@ -11,7 +11,7 @@ Paq is a Neovim package manager written in Lua.
 
 ## Requirements
 
-- neovim 0.5
+- Neovim 0.5
 - git
 
 ## Installation
@@ -58,7 +58,7 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 ## Commands
 
-- `PaqInstall`: Install all plugins listed in your configuration.
+- `PaqInstall`: Install all packages listed in your configuration.
 - `PaqUpdate`: Update all packages already on your system (it won't implicitly install them).
 - `PaqClean`: Remove all packages (in Paq's directory) that aren't listed on your configuration.
 
@@ -75,14 +75,14 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 ## Moving from other package managers
 
 The [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
-include a section on moving from vim-plug or minpac to Paq.
+include a section on moving from Vim-plug or Minpac to Paq.
 
 
 ## Contributing
 
-Paq is small because my own needs as a neovim user are pretty simple,
+Paq is small because my own needs as a Neovim user are pretty simple,
 but that doesn't mean I'm against adding features.
-If you have suggestions, write an issue!
+If you find a bug, have questions or suggestions, write an issue!
 
 You can read the [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
 section on contributing for more information.
