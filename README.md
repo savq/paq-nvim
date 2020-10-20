@@ -40,13 +40,14 @@ EOF
 ```
 Then, run `:PaqInstall`.
 
-In general, to add packages to Paq's list, use `paq '<gh-username>/<repo>'`
-inside a Lua chunk (or in a Lua module).
+In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
+inside a Lua chunk (or in a separate Lua module).
 
 Paq can also import packages from websites other than GitHub.com
-(refer to the [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)).
+using the `url` option (refer to the
+[documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)).
 
-Keep in mind that Paq doesn't generate helptags automatically.
+NOTE: Paq doesn't generate helptags.
 To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 
@@ -54,7 +55,7 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 - `PaqInstall`: Install all plugins listed in your configuration.
 - `PaqUpdate`: Update all packages already on your system (it won't implicitly install them).
-- `PaqClean`: Remove all packages that aren't listed on your configuration.
+- `PaqClean`: Remove all packages (in Paq's directory) that aren't listed on your configuration.
 
 
 ## Options
@@ -76,6 +77,8 @@ include a section on moving from vim-plug or minpac to Paq.
 
 Paq is small because my own needs as a neovim user are pretty simple,
 but that doesn't mean I'm against adding features.
-Read the [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
+If you have suggestions, write an issue!
+
+You can read the [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
 section on contributing for more information.
 

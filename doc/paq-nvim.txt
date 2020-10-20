@@ -1,4 +1,4 @@
-*paq-nvim.txt*    For Neovim version 0.?    Last change: 2020-10-18
+*paq-nvim.txt*  Package manager for Neovim version 0.?  Last change: 2020-10-18
 
 Author: Sergio Alejandro Vargas    <savargasqu+paq@unal.edu.co>
 
@@ -10,7 +10,7 @@ CONTENTS                                                        *paq-contents*
     Features                                              |paq-features|
   Usage                                                   |paq-usage|
   Lua module                                              |paq-lua-module|
-  Options                                                 |paq-options|
+  Package options                                         |paq-options|
   Commands                                                |paq-commands|
   Paq directory                                           |paq-directory|
   Moving from other package managers                      |paq-moving|
@@ -22,23 +22,23 @@ INTRODUCTION                                                *paq-introduction*
 
 
 Paq is a Neovim package manager. It can install, update and remove packages
-from any valid git repository, and it includes familiar shorthand for
+from any valid git repository, and it includes a familiar shorthand for
 GitHub repositories.
 
-Paq is written in Lua; it uses the |lua-loop| API to install and update
-packages asynchronously; and it stores packages in |packpath| directories.
+Paq is written in Lua; it uses the |loop| API to install and update
+packages asynchronously, and it stores packages in |packpath| directories.
 
-Paq is for Neovim users who prefer to use Lua as their configuration language.
+Paq is for Neovim users who use Lua as their configuration language.
 It was written to be a wrapper around existing Neovim features, and to have
 a simple and familiar interface for listing packages in Lua.
+
 
 ------------------------------------------------------------------------------
 FEATURES                                                        *paq-features*
 
-
 - Easy to use and configure
 
-- Fast installation and updating using |lua-loop|
+- Fast installation and updating using Nvim's |loop|
 
 - Small implementation, around 100 LOC
 
@@ -56,7 +56,8 @@ To get started with Paq:
     local paq = Paq.paq           -- Function
 <
 
- 2. Call the `paq` function with the name of a package repository, for example:
+ 2. List the packages you want to install using the `paq` function with the
+    name of a package repository, for example:
 >
     paq 'lervag/vimtex'
 <
@@ -77,7 +78,7 @@ as `Paq`, we have:
 
 |Paq.paq()|                                                        *Paq.paq()*
 
-  Add a package to Paq's (internal) list. the paq function can take a table or
+  Add a package to Paq's (internal) list. The paq function can take a table or
   a string. When a table is passed, the first value has to be a string with
   the name of the repository, like: `'<GitHub-username>/<repository-name>'`.
   The other key-value pairs in the table have to be named explicitly,
@@ -92,13 +93,13 @@ as `Paq`, we have:
 |Paq.install()|                                                *Paq.install()*
 
   Install all packages listed on your configuration, if a package is already
-  installed, the command skips it.
+  installed, the function ignores it.
 
 
 |Paq.update()|                                                  *Paq.update()*
 
   Update the installed packages listed on your configuration. If a package
-  hasn't been installed with |PaqInstall|, the command skips it.
+  hasn't been installed with |PaqInstall|, the function ignores it.
 
 
 |Paq.clean()|                                                    *Paq.clean()*
@@ -108,44 +109,44 @@ as `Paq`, we have:
 
 
 ==============================================================================
-PAQ OPTIONS                                                      *paq-options*
+PACKAGE OPTIONS                                                  *paq-options*
 
-When adding a package using the `paq` function, you can pass a table
-with the following options:
+When adding a package using the `paq` function, you can pass a table with
+some named options. These options don't need to be in a particular order,
+as long as the name of the repository is the first thing on the table.
+
+The options are the following:
 
 `branch`
-  A string with the name of a branch of the git repository.
-  If set, Paq will only download that specific branch
-  (using git's `--single-branch ` flag).
+  A string with the name of a branch of the git repository. If set,
+  Paq will only download that specific branch.
 
   Default value: `nil`
 
 
 `opt`
-  A boolean indicating whether the package is optional or not.
-  If set, the package will be in the optional packages directory
-  See |pack-add|.
+  A boolean indicating whether the package is optional or not. If set,
+  the package will be in the optional packages directory. See |packages|
+  and |packadd|.
 
   Default value: `false`
+
 
 `url`
   A string indicating the URL of the git repository. This allows Paq to
   download packages from any website, however, for convenience, if not set,
-  Paq will try to find the repository on GitHub.com
+  Paq will try to find the repository on GitHub.com.
 
   Default value: `'https://github.com/'..'<GitHub-username>/<repository-name>'`
 
 
-Note: These options don't need to be in a particular order, as long as the
-name of the repository is the first thing on the table.
-
-
 Example:
 
-The language client `coc.nvim` recommends installing and using the
-release branch of their repo. To do that, we can set the branch option:
+The language client `coc.nvim` recommends installing the release branch of
+their repository, if we wanted to also install it as an optional package,
+we could call `paq` like:
 >
-    paq {'neoclide/coc.nvim', branch='release'}
+    paq {'neoclide/coc.nvim', opt=true, branch='release'}
 <
 
 
@@ -170,7 +171,7 @@ demand.
 PAQ DIRECTORY                                                  *paq-directory*
                                                                      *paq-dir*
 
-Paq installs packages using Neovim's |packages| convention, which itself
+Paq installs packages using Nvim's |packages| convention, which itself
 follows the XDG Base Directory specification. You can find the directory
 where Paq installs packages by running the command:
 >
@@ -183,48 +184,78 @@ Paq's directory, since |Paq.clean| could delete them.
 ==============================================================================
 MOVING FROM OTHER PACKAGE MANAGERS                                *paq-moving*
 
-Paq was written with Neovim users who prefer to use Lua (over vimL).
-If you need backwards compatibility with Vim 8, Consider using Minpac;
-If you need backwards compatibility with Vim 7, consider using Vim-plug
-(also consider upgrading). If you don't need any backwards compatibility,
-keep reading.
+Paq was written for Neovim users who use Lua as their configuration language,
+and prefer simple packages that extend, rather than replace Nvim's features.
+
+Currently, the author is not aware of a package manager that is smaller
+than Paq (yes, Paq is two times smaller than Pathogen).
+
+If you need backwards compatibility with Vim, consider using another package
+manager (Minpac for Vim8 or Vim-plug for Vim7). If you don't need any
+backwards compatibility, keep reading.
 
 Vim-plug~
 
+Vim-plug puts packages in it's own custom directory, you can see where calling:
+>
+    :echo stdpath('data') .. '/plugged'
+>
+
+If have a lot of packages, you can move them manually. Both Vim-plug and Paq
+handle packages as git repositories, so there shouldn't be any issues.
+You will have to split your packages into `start` and `opt` packages,
+Paq can't do that for you. See |paq-dir| and |packages| for more information.
+
 Paq's syntax is heavily inspired by Vim-plug's, so what you would write in a
-vimscript file like this:
+VimL file like this:
 >
     " VimL + Plug
     call plug#begin('~/.vim/plugged')
+
     Plug 'neoclide/coc.nvim', {'branch':'release'}
+
     call plug#end()
 <
 Would be written in a lua file like this:
 >
     -- Lua + Paq
     vim.cmd['packadd paq-nvim']
+
     local paq = require'paq-nvim'.paq
+
     paq {'neoclide/coc.nvim', branch='release'}
 <
-Plug puts packages in it's own custom directory, you can see where calling:
->
-    :echo stdpath('data') .. '/plugged'
->
 
-If have a lot of packages, you can move them manually. Both Plug and Paq
-handle packages as git repos, so there shouldn't be any issues.
-You will have to split your packages into `start` and `opt` packages,
-Paq can't do that for you. See |paq-dir| and |packages| for more information.
+The only noticeable differences are that braces also enclose the name of the
+repository, options don't need quotes, and options use an equals sign instead
+of a colon.
 
 
 Minpac~
 
-Minpac does use the |packages| feature. so it migrating from one to the other
-should be very straightforward. Assuming all your Minpac packages are in
-`pack/minpac`, you can just rename the directory to `paqs`, like so:
+Minpac uses the |packages| feature, so migrating from Minpac to Paq should be
+very straightforward. Assuming all your Minpac packages are in `pack/minpac`,
+you can just rename the directory to `paqs`, like so:
 >
     $ cd ~/.local/share/nvim/site/pack
     $ mv minpac paqs
+<
+
+What you write in your vimL configuration:
+>
+    " vimL + minpac
+    packadd minpac
+    call minpac#init()
+
+    call minpac#add('lervag/vimtex', {'type': 'opt'})
+<
+Would be written in Lua like:
+>
+    -- Lua + Paq
+    vim.cmd'packadd paq-nvim'
+    local paq = require'paq-nvim'.paq
+
+    paq {'lervag/vimtex', opt=true}
 <
 
 
@@ -232,37 +263,41 @@ should be very straightforward. Assuming all your Minpac packages are in
 ==============================================================================
 CONTRIBUTING                                                *paq-contributing*
 
-Paq is small because my own needs as a neovim user are pretty simple,
-but that doesn't mean I'm against adding features.
-If you have suggestions, write an issue!
+Paq is small because my own needs as a Neovim user are pretty simple,
+but that doesn't mean I'm against adding features. If you have suggestions,
+write an issue!
 
 All development for this package happens on GitHub. When posting an issue
-always try to be specific. The more detailed the description the better.
-Also keep in mind:
+always try to be specific. When writing the titles, make the intent clear;
+and for the body of the issue, the more detailed the description the better.
 
-Titles~
+Also keep in mind the following:
 
-When writing the titles, make the intent clear.
+Bugs~
 
-- For bugs, write the title as an statement `Paq isn't doing foo` or
-  `Paq is doing bar instead of foo` .
+Write the title as an statement:
+`Paq isn't doing foo` or `Paq is doing bar instead of foo`
 
-- For feature requests, write the title as an imperative,
-  `Do foo instead of bar` or `Add foo` . This makes it easier to match
-  enhancements to their (possible) corresponding PR.
+In the body, be sure to include the
+steps necessary to reproduce the issue, and a minimal working example.
 
-- For questions: Self explanatory, write it as a question. `Can Paq do foo?` .
 
-Body of the issue~
+Feature requests~
 
-- For bugs, be sure to include the steps necessary to reproduce the issue,
-  and a minimal working example.
+For feature requests, write the title as an imperative:
+`Do foo instead of bar` or `Add foo`
 
-- For feature requests, try to nail down the scope of the feature,
-  what it should do and what it shouldn't do. Also include if you're
-  interested in adding the feature yourself.
+This makes it easier to match them to their (possible) corresponding PR.
 
-- For questions, there are no restrictions. Ask away.
+In the body, try to nail down the scope of the feature, what it should do
+and what it shouldn't do. Also include if you're interested in adding the
+feature yourself.
+
+
+Questions~
+
+For questions, there are no restrictions. Ask away. Just write the title a
+question: `Can Paq do foo?`
 
 
 ==============================================================================
