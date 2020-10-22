@@ -36,10 +36,8 @@ local function call_git(action, name, ...)
     )
 end
 
-local function install_pkg(name, args)
-    local dir = get_dir(name, args.opt)
+local function install_pkg(name, dir, args)
     if not is_pkg_dir(dir) then
-        local ok = true
         if args.branch then
             call_git('install', name, 'clone', args.url, '-b',  args.branch, '--single-branch', dir)
         else
@@ -48,17 +46,17 @@ local function install_pkg(name, args)
     end
 end
 
-local function update_pkg(name, args)
-    local dir = get_dir(name, args.opt)
+local function update_pkg(name, dir)
     if is_pkg_dir(dir) then
         call_git('update', name, '-C', dir, 'pull')
     end
 end
 
 local function map_pkgs(fn)
-    if not fn then return end
+    local dir
     for name, args in pairs(packages) do
-        fn(name, args)
+        dir = get_dir(name, args.opt)
+        fn(name, dir, args)
     end
 end
 
