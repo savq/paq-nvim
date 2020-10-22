@@ -11,8 +11,8 @@ Paq is a Neovim package manager written in Lua.
 
 ## Requirements
 
-- Neovim 0.5
 - git
+- Neovim 0.5
 
 ## Installation
 
@@ -30,8 +30,8 @@ In your init.vim, you can write something like:
 ```
 lua << EOF
 
-vim.cmd 'packadd paq-nvim'         -- Load the paq-nvim package
-local paq = require'paq-nvim'.paq  -- Import the module and bind the `paq` function
+vim.cmd 'packadd paq-nvim'         -- Load package
+local paq = require'paq-nvim'.paq  -- Import module and bind `paq` function
 
 paq 'neovim/nvim-lspconfig'
 paq 'nvim-lua/completion-nvim'

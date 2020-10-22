@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim version 0.5  Last change: 2020-10-20
+*paq-nvim.txt*  Package manager for Nvim version 0.5  Last change: 2020-10-22
 *paq-nvim*
 
 Author: Sergio Alejandro Vargas    <savargasqu+git@unal.edu.co>
@@ -21,7 +21,6 @@ CONTENTS                                                        *paq-contents*
 ==============================================================================
 INTRODUCTION                                                *paq-introduction*
 
-
 Paq is a Neovim package manager. It can install, update and remove packages
 from any valid git repository, and it includes a familiar shorthand for
 GitHub repositories.
@@ -29,9 +28,9 @@ GitHub repositories.
 Paq is written in Lua; it uses the |loop| API to install and update
 packages asynchronously, and it stores packages in |packpath| directories.
 
-Paq is for Neovim users who use Lua as their configuration language.
-It was written to be a wrapper around existing Neovim features, and to have
-a simple and familiar interface for listing packages in Lua.
+Paq is for Nvim users who use Lua as their configuration language.
+It was written to be a wrapper around existing Nvim features, and to have
+a simple and familiar interface for declaring packages.
 
 
 ------------------------------------------------------------------------------
@@ -80,9 +79,9 @@ imported as `Paq`, we have:
 
 |Paq.paq|                                                            *Paq.paq*
 
-  Add a package to Paq's (internal) list. The paq function can take a table or
-  a string. When a table is passed, the first value has to be a string with
-  the name of the repository, like: `'<GitHub-username>/<repository-name>'`.
+  Add a package to Paq's (internal) list. It can take a table or a string.
+  When a table is passed, the first value has to be a string with the name of
+  the repository, like: `'<GitHub-username>/<repository-name>'`.
   The other key-value pairs in the table have to be named explicitly,
   see |paq-options|. If only a string is passed, it works as if it was the
   first value of the table, and all other options will be set to their default
@@ -145,7 +144,7 @@ The options are the following:
   Default value: `'https://github.com/'..'<GitHub-username>/<repository-name>'`
 
 
-Example:
+Example~
 
 The language client `coc.nvim` recommends installing the release branch of
 their repository, if we wanted to also install it as an optional package,
@@ -162,7 +161,7 @@ Paq installs packages using Nvim's |packages| convention, which itself
 follows the XDG Base Directory specification. You can find the directory
 where Paq installs packages by running the command:
 >
-    :echo stdpath("data") .. '/site/pack/paqs'
+    :echo stdpath('data') .. '/site/pack/paqs'
 <
 If you have packages that aren't managed by Paq, you shouldn't put them on
 Paq's directory, since |Paq.clean| could delete them.
@@ -171,15 +170,13 @@ Paq's directory, since |Paq.clean| could delete them.
 ==============================================================================
 MOVING FROM OTHER PACKAGE MANAGERS                                *paq-moving*
 
-Paq was written for Neovim users who use Lua as their configuration language,
-and prefer simple packages that extend, rather than replace Nvim's features.
-
-Currently, the author is not aware of a package manager that is smaller
-than Paq (yes, Paq is two times smaller than Pathogen).
+Paq was written for Nvim users who use Lua as their configuration language,
+and prefer simple packages that extend, rather than replace, Nvim's features.
+Currently, the author is not aware of any package manager smaller than Paq.
 
 If you need backwards compatibility with Vim, consider using another package
-manager (Minpac for Vim8 or Vim-plug for Vim7). If you don't need any
-backwards compatibility, keep reading.
+manager (Minpac for Vim8 or Vim-plug for Vim7).
+
 
 Vim-plug~
 
@@ -187,9 +184,9 @@ Vim-plug puts packages in it's own custom directory, you can see where calling:
 >
     :echo stdpath('data') .. '/plugged'
 <
-If have a lot of packages, you can move them manually. Both Vim-plug and Paq
-handle packages as git repositories, so there shouldn't be any issues.
-You will have to split your packages into `start` and `opt` packages,
+If you have a lot of packages, you can move them manually. Both Vim-plug and
+Paq handle packages as git repositories, so there shouldn't be any issues.
+You will have to split your packages into the `start` and `opt` directories,
 Paq can't do that for you. See |paq-directory| and |packages| for more
 information.
 
@@ -207,26 +204,24 @@ Would be written in a lua file like this:
 >
     -- Lua + Paq
     vim.cmd['packadd paq-nvim']
-
     local paq = require'paq-nvim'.paq
 
     paq {'neoclide/coc.nvim', branch='release'}
 <
-The only noticeable differences are that braces also enclose the name of the
-repository, options don't need quotes, and options use an equals sign instead
-of a colon.
+Note that braces also enclose the name of the repository, options use an equals
+sign instead of a colon, and the keys don't need quotes.
 
 
 Minpac~
 
 Minpac uses the |packages| feature, so migrating from Minpac to Paq should be
-very straightforward. Assuming all your Minpac packages are in `pack/minpac`,
+straightforward. Assuming all your Minpac packages are in `pack/minpac`,
 you can just rename the directory to `paqs`, like so:
 >
     $ cd ~/.local/share/nvim/site/pack
     $ mv minpac paqs
 <
-What you write in your vimL configuration:
+What you write in your VimL configuration:
 >
     " vimL + minpac
     packadd minpac
@@ -247,7 +242,7 @@ Would be written in Lua like:
 ==============================================================================
 CONTRIBUTING                                                *paq-contributing*
 
-Paq is small because my own needs as a Neovim user are pretty simple,
+Paq is small because my own needs as a Nvim user are pretty simple,
 but that doesn't mean I'm against adding features. If you have suggestions,
 write an issue!
 
@@ -286,9 +281,10 @@ question: `Can Paq do foo?`
 
 Showcase~
 
-Neovim's Lua support is still a novel thing. If you are using Paq in your Lua
+Nvim's Lua support is still a novel thing. If you are using Paq in your Lua
 configuration, I'd be interested to see it. Post an issue, or write me an
 email.
+
 
 ==============================================================================
  vim:tw=78:ts=8:noet:ft=help:norl:
