@@ -89,10 +89,10 @@ function rmdir_rec(dir) -- FIXME: Find alternative to this function
 end
 
 local function paq(args)
-    local a = type(args)
-    if a == 'string' then
+    local t = type(args)
+    if t == 'string' then
         args = {args}
-    elseif a ~= 'table' then
+    elseif t ~= 'table' then
         return
     end
 
@@ -103,9 +103,9 @@ local function paq(args)
     end
 
     packages[reponame] = {
-        opt    = args.opt or false,
+        branch = args.branch,
+        opt    = args.opt,
         url    = args.url or GITHUB .. args[1] .. '.git',
-        branch = args.branch or nil
     }
 end
 
