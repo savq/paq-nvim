@@ -14,12 +14,9 @@ local function is_pkg_dir(dir)
     return vim.fn.isdirectory(dir) ~= 0
 end
 
-local function print_res(success, operation, args)
-    if success then
-        print('Paq: ' .. operation .. ' ' .. args)
-    else
-        print('Paq failed to ' .. operation .. ' ' .. args)
-    end
+local function print_res(action, args, ok)
+    local res = ok and 'Paq: ' or 'Paq: Failed to '
+    print(res .. action .. ' ' .. args)
 end
 
 local function call_git(action, name, ...)
@@ -29,7 +26,7 @@ local function call_git(action, name, ...)
         {args=args},
         vim.schedule_wrap(
             function(code, signal)
-                print_res(code == 0, action, name)
+                print_res(action, name, code == 0)
                 handle:close()
             end
         )
@@ -68,7 +65,7 @@ local function clean_pkgs(dir)
         if not name then break end
         if not packages[name] then -- Package isn't listed
             ok = rmdir_rec(dir .. name)
-            print_res(ok, 'uninstall', name)
+            print_res('uninstall', name, ok)
             if not ok then return end
         end
     end
@@ -101,7 +98,7 @@ local function paq(args)
 
     local reponame = args[1]:match(REPO_RE)
     if not reponame then
-        print_res(false, 'parse', args[1])
+        print_res('parse', args[1])
         return
     end
 
