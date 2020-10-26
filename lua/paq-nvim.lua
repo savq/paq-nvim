@@ -1,3 +1,4 @@
+local loop = vim.loop
 -- Constants
 local PATH = vim.fn.stdpath('data') .. '/site/pack/paqs/'
 local GITHUB = 'https://github.com/'
@@ -22,7 +23,7 @@ end
 local function call_git(action, name, ...)
     local args = {...}
     local handle
-    handle = vim.loop.spawn('git',
+    handle = loop.spawn('git',
         {args=args},
         vim.schedule_wrap(
             function(code, signal)
@@ -58,10 +59,10 @@ local function map_pkgs(fn)
 end
 
 local function clean_pkgs(dir)
-    local handle = vim.loop.fs_scandir(dir)
+    local handle = loop.fs_scandir(dir)
     local name, ok
     while handle do
-        name = vim.loop.fs_scandir_next(handle)
+        name = loop.fs_scandir_next(handle)
         if not name then break end
         if not packages[name] then -- Package isn't listed
             ok = rmdir_rec(dir .. name)
@@ -72,20 +73,20 @@ local function clean_pkgs(dir)
 end
 
 function rmdir_rec(dir) -- FIXME: Find alternative to this function
-    local handle = vim.loop.fs_scandir(dir)
+    local handle = loop.fs_scandir(dir)
     local name, ok
     while handle do
-        name, t = vim.loop.fs_scandir_next(handle)
+        name, t = loop.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
         if t == 'directory' then
             ok = rmdir_rec(child)
         else
-            ok = vim.loop.fs_unlink(child)
+            ok = loop.fs_unlink(child)
         end
         if not ok then return end
     end
-    return vim.loop.fs_rmdir(dir)
+    return loop.fs_rmdir(dir)
 end
 
 local function paq(args)
