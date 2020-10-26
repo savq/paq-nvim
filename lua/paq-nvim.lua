@@ -58,35 +58,25 @@ local function map_pkgs(fn)
     end
 end
 
-local function clean_pkgs(dir)
+function rmdir(dir, ispkg)
+    local name, child
+    local ok = true
     local handle = loop.fs_scandir(dir)
-    local name, ok
-    while handle do
-        name = loop.fs_scandir_next(handle)
-        if not name then break end
-        if not packages[name] then -- Package isn't listed
-            ok = rmdir_rec(dir .. name)
-            print_res('uninstall', name, ok)
-            if not ok then return end
-        end
-    end
-end
-
-function rmdir_rec(dir) -- FIXME: Find alternative to this function
-    local handle = loop.fs_scandir(dir)
-    local name, ok
     while handle do
         name, t = loop.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
-        if t == 'directory' then
-            ok = rmdir_rec(child)
+        if ispkg then
+            if not packages[name] then --package isn't listed
+                ok = rmdir(child)
+                print_res('uninstall', name, ok)
+            end
         else
-            ok = loop.fs_unlink(child)
+            ok = (t == 'directory') and rmdir(child) or loop.fs_unlink(child)
         end
         if not ok then return end
     end
-    return loop.fs_rmdir(dir)
+    return ispkg or loop.fs_rmdir(dir)
 end
 
 local function paq(args)
@@ -113,6 +103,6 @@ end
 return {
     install = function() map_pkgs(install_pkg) end,
     update  = function() map_pkgs(update_pkg) end,
-    clean   = function() clean_pkgs(PATH..'start/'); clean_pkgs(PATH..'opt/') end,
+    clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
     paq     = paq
 }
