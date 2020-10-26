@@ -12,13 +12,13 @@ Paq is a Neovim package manager written in Lua.
 ## Requirements
 
 - git
-- Neovim 0.5
+- [Neovim](https://github.com/neovim/neovim) 0.5
 
 ## Installation
 
 Clone this repository:
 
-```
+```sh
 git clone https://github.com/savq/paq-nvim.git \
     "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/pack/paqs/opt/paq-nvim
 ```
@@ -27,7 +27,7 @@ git clone https://github.com/savq/paq-nvim.git \
 ## Usage
 
 In your init.vim, you can write something like:
-```
+```lua
 lua << EOF
 
 vim.cmd 'packadd paq-nvim'         -- Load package
