@@ -58,25 +58,25 @@ local function map_pkgs(fn)
     end
 end
 
-function rmdir(dir, ispkg)
+function rmdir(dir, ispkgdir)
     local name, child
-    local ok = true
+    local ok = true -- Some calls to this function might be NOP
     local handle = loop.fs_scandir(dir)
     while handle do
         name, t = loop.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
-        if ispkg then
+        if ispkgdir then --check which packages are listed
             if not packages[name] then --package isn't listed
                 ok = rmdir(child)
                 print_res('uninstall', name, ok)
             end
-        else
+        else --it's an arbitrary directory or file
             ok = (t == 'directory') and rmdir(child) or loop.fs_unlink(child)
         end
         if not ok then return end
     end
-    return ispkg or loop.fs_rmdir(dir)
+    return ispkgdir or loop.fs_rmdir(dir) -- Don't delete start or opt
 end
 
 local function paq(args)
