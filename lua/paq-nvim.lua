@@ -2,7 +2,7 @@ local loop = vim.loop
 -- Constants
 local PATH = vim.fn.stdpath('data') .. '/site/pack/paqs/'
 local GITHUB = 'https://github.com/'
-local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
+local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 
 -- Table of 'name':{options} pairs
 local packages = {}
@@ -51,40 +51,38 @@ local function update_pkg(name, dir)
 end
 
 local function map_pkgs(fn)
-    local dir
     for name, args in pairs(packages) do
-        dir = get_dir(name, args.opt)
-        fn(name, dir, args)
+        fn(name, get_dir(name, args.opt), args)
     end
 end
 
-function rmdir(dir, ispkgdir)
-    local name, child
-    local ok = true -- Some calls to this function might be NOP
+local function rmdir(dir, ispkgdir)
+    local name, t, child, ok
     local handle = loop.fs_scandir(dir)
     while handle do
         name, t = loop.fs_scandir_next(handle)
         if not name then break end
+
         child = dir .. '/' .. name
         if ispkgdir then --check which packages are listed
-            if not packages[name] then --package isn't listed
+            if packages[name] then --do nothing
+                ok = true
+            else --package isn't listed, remove it
                 ok = rmdir(child)
                 print_res('uninstall', name, ok)
             end
         else --it's an arbitrary directory or file
             ok = (t == 'directory') and rmdir(child) or loop.fs_unlink(child)
         end
+
         if not ok then return end
     end
     return ispkgdir or loop.fs_rmdir(dir) -- Don't delete start or opt
 end
 
 local function paq(args)
-    local t = type(args)
-    if t == 'string' then
+    if type(args) == 'string' then
         args = {args}
-    elseif t ~= 'table' then
-        return
     end
 
     local reponame = args[1]:match(REPO_RE)
