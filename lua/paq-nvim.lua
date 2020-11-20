@@ -1,11 +1,10 @@
-local loop = vim.loop
 -- Constants
-local PATH = vim.fn.stdpath('data') .. '/site/pack/paqs/'
-local GITHUB = 'https://github.com/'
+local PATH    = vim.fn.stdpath('data') .. '/site/pack/paqs/'
+local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 
--- Table of 'name':{options} pairs
-local packages = {}
+local uv = vim.loop -- Alias for Neovim's event loop (libuv)
+local packages = {} -- Table of 'name':{options} pairs
 
 local function print_res(action, args, ok)
     local res = ok and 'Paq: ' or 'Paq: Failed to '
@@ -15,7 +14,7 @@ end
 local function call_git(name, dir, action, ...)
     local args = {...}
     local handle
-    handle = loop.spawn('git',
+    handle = uv.spawn('git',
         {args=args, cwd=dir},
         vim.schedule_wrap(
             function(code, signal)
@@ -28,7 +27,7 @@ end
 
 local function install_pkg(name, dir, isdir, args)
     if not isdir then
-        loop.fs_mkdir(dir, loop.fs_stat(PATH).mode)
+        uv.fs_mkdir(dir, uv.fs_stat(PATH).mode)
         if args.branch then
             call_git(name, dir, 'install', 'clone', args.url, '-b',  args.branch, '--single-branch', '.')
         else
@@ -54,9 +53,9 @@ end
 
 local function rmdir(dir, ispkgdir)
     local name, t, child, ok
-    local handle = loop.fs_scandir(dir)
+    local handle = uv.fs_scandir(dir)
     while handle do
-        name, t = loop.fs_scandir_next(handle)
+        name, t = uv.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
         if ispkgdir then --check which packages are listed
@@ -67,11 +66,11 @@ local function rmdir(dir, ispkgdir)
                 print_res('uninstall', name, ok)
             end
         else --it's an arbitrary directory or file
-            ok = (t == 'directory') and rmdir(child) or loop.fs_unlink(child)
+            ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
         end
         if not ok then return end
     end
-    return ispkgdir or loop.fs_rmdir(dir) -- Don't delete start or opt
+    return ispkgdir or uv.fs_rmdir(dir) -- Don't delete start or opt
 end
 
 local function paq(args)
