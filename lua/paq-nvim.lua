@@ -1,30 +1,21 @@
-local loop = vim.loop
 -- Constants
-local PATH = vim.fn.stdpath('data') .. '/site/pack/paqs/'
-local GITHUB = 'https://github.com/'
-local REPO_RE = '^[%w-]+/([%w-_.]+)$' --is this regex correct?
+local PATH    = vim.fn.stdpath('data') .. '/site/pack/paqs/'
+local GITHUB  = 'https://github.com/'
+local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 
--- Table of 'name':{options} pairs
-local packages = {}
-
-local function get_dir(name, opt)
-    return PATH .. (opt and 'opt/' or 'start/') .. name
-end
-
-local function is_pkg_dir(dir)
-    return vim.fn.isdirectory(dir) ~= 0
-end
+local uv = vim.loop -- Alias for Neovim's event loop (libuv)
+local packages = {} -- Table of 'name':{options} pairs
 
 local function print_res(action, args, ok)
     local res = ok and 'Paq: ' or 'Paq: Failed to '
     print(res .. action .. ' ' .. args)
 end
 
-local function call_git(action, name, ...)
+local function call_git(name, dir, action, ...)
     local args = {...}
     local handle
-    handle = loop.spawn('git',
-        {args=args},
+    handle = uv.spawn('git',
+        {args=args, cwd=dir},
         vim.schedule_wrap(
             function(code, signal)
                 print_res(action, name, code == 0)
@@ -34,57 +25,57 @@ local function call_git(action, name, ...)
     )
 end
 
-local function install_pkg(name, dir, args)
-    if not is_pkg_dir(dir) then
+local function install_pkg(name, dir, isdir, args)
+    if not isdir then
+        uv.fs_mkdir(dir, uv.fs_stat(PATH).mode)
         if args.branch then
-            call_git('install', name, 'clone', args.url, '-b',  args.branch, '--single-branch', dir)
+            call_git(name, dir, 'install', 'clone', args.url, '-b',  args.branch, '--single-branch', '.')
         else
-            call_git('install', name, 'clone', args.url, dir)
+            call_git(name, dir, 'install', 'clone', args.url, '.')
         end
     end
 end
 
-local function update_pkg(name, dir)
-    if is_pkg_dir(dir) then
-        call_git('update', name, '-C', dir, 'pull')
+local function update_pkg(name, dir, isdir)
+    if isdir then
+        call_git(name, dir, 'update', 'pull')
     end
 end
 
 local function map_pkgs(fn)
-    local dir
+    local dir, isdir
     for name, args in pairs(packages) do
-        dir = get_dir(name, args.opt)
-        fn(name, dir, args)
+        dir = PATH .. (opt and 'opt/' or 'start/') .. name
+        isdir = vim.fn.isdirectory(dir) ~= 0
+        fn(name, dir, isdir, args)
     end
 end
 
-function rmdir(dir, ispkgdir)
-    local name, child
-    local ok = true -- Some calls to this function might be NOP
-    local handle = loop.fs_scandir(dir)
+local function rmdir(dir, ispkgdir)
+    local name, t, child, ok
+    local handle = uv.fs_scandir(dir)
     while handle do
-        name, t = loop.fs_scandir_next(handle)
+        name, t = uv.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
         if ispkgdir then --check which packages are listed
-            if not packages[name] then --package isn't listed
+            if packages[name] then --do nothing
+                ok = true
+            else --package isn't listed, remove it
                 ok = rmdir(child)
                 print_res('uninstall', name, ok)
             end
         else --it's an arbitrary directory or file
-            ok = (t == 'directory') and rmdir(child) or loop.fs_unlink(child)
+            ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
         end
         if not ok then return end
     end
-    return ispkgdir or loop.fs_rmdir(dir) -- Don't delete start or opt
+    return ispkgdir or uv.fs_rmdir(dir) -- Don't delete start or opt
 end
 
 local function paq(args)
-    local t = type(args)
-    if t == 'string' then
+    if type(args) == 'string' then
         args = {args}
-    elseif t ~= 'table' then
-        return
     end
 
     local reponame = args[1]:match(REPO_RE)

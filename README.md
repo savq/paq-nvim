@@ -76,14 +76,3 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 The [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
 include a section on moving from Vim-plug or Minpac to Paq.
-
-
-## Contributing
-
-Paq is small because my own needs as a Neovim user are pretty simple,
-but that doesn't mean I'm against adding features.
-If you find a bug, have questions or suggestions, write an issue!
-
-You can read the [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
-section on contributing for more information.
-
