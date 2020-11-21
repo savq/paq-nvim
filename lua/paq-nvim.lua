@@ -27,11 +27,10 @@ end
 
 local function install_pkg(name, dir, isdir, args)
     if not isdir then
-        uv.fs_mkdir(dir, uv.fs_stat(PATH).mode)
         if args.branch then
-            call_git(name, dir, 'install', 'clone', args.url, '-b',  args.branch, '--single-branch', '.')
+            call_git(name, nil, 'install', 'clone', args.url, '-b',  args.branch, '--single-branch', dir)
         else
-            call_git(name, dir, 'install', 'clone', args.url, '.')
+            call_git(name, nil, 'install', 'clone', args.url, dir)
         end
     end
 end
@@ -45,7 +44,7 @@ end
 local function map_pkgs(fn)
     local dir, isdir
     for name, args in pairs(packages) do
-        dir = PATH .. (opt and 'opt/' or 'start/') .. name
+        dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
         isdir = vim.fn.isdirectory(dir) ~= 0
         fn(name, dir, isdir, args)
     end
