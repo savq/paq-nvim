@@ -27,6 +27,7 @@ git clone https://github.com/savq/paq-nvim.git \
 ## Usage
 
 In your init.vim, you can write something like:
+
 ```lua
 lua << EOF
 
@@ -35,14 +36,13 @@ local paq = require'paq-nvim'.paq  -- Import module and bind `paq` function
 
 paq 'neovim/nvim-lspconfig'
 paq 'nvim-lua/completion-nvim'
-paq 'nvim-lua/diagnostic-nvim'
-paq 'tjdevries/lsp_extensions.nvim'
+paq 'nvim-lua/lsp_extensions.nvim'
 
-paq{'neoclide/coc.nvim', branch='release'} -- Use braces when passing options
-paq{'lervag/vimtex', opt=true}
+paq{'lervag/vimtex', opt=true}     -- Use braces when passing options
 
 EOF
 ```
+
 Then, run `:PaqInstall`.
 
 In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
