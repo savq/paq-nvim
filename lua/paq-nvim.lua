@@ -6,38 +6,49 @@ local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local uv = vim.loop -- Alias for Neovim's event loop (libuv)
 local packages = {} -- Table of 'name':{options} pairs
 
+local call_cmd
+
 local function print_res(action, args, ok)
     local res = ok and 'Paq: ' or 'Paq: Failed to '
     print(res .. action .. ' ' .. args)
 end
 
-local function call_git(name, dir, action, ...)
-    local args = {...}
+local function run_hook(name, dir, build)
+    local cmd
+    local build_args = {}
+    for word in build:gmatch("%S+") do
+        table.insert(build_args, word)
+    end
+    cmd = table.remove(build_args, 1)
+    return call_cmd(cmd, name, dir, 'run post-install hook', nil, build_args)
+end
+
+function call_cmd(cmd, name, dir, action, build, args, d)
     local handle
-    handle = uv.spawn('git',
-        {args=args, cwd=dir},
-        vim.schedule_wrap(
-            function(code, signal)
-                print_res(action, name, code == 0)
-                handle:close()
-            end
-        )
+    handle = uv.spawn(cmd, {args=args, cwd=dir},
+        vim.schedule_wrap(function(code)
+            print_res(action, name, code == 0)
+            if build then run_hook(name, d, build) end
+            handle:close()
+        end)
     )
 end
 
 local function install_pkg(name, dir, isdir, args)
+    local install_args, hook
     if not isdir then
         if args.branch then
-            call_git(name, nil, 'install', 'clone', args.url, '-b',  args.branch, '--single-branch', dir)
+            install_args = {'clone', args.url, '-b',  args.branch, '--single-branch', dir}
         else
-            call_git(name, nil, 'install', 'clone', args.url, dir)
+            install_args = {'clone', args.url, dir}
         end
+        call_cmd('git', name, nil, 'install', args.build, install_args, dir)
     end
 end
 
 local function update_pkg(name, dir, isdir)
     if isdir then
-        call_git(name, dir, 'update', 'pull')
+        call_cmd('git', name, dir, 'update', nil, {'pull'})
     end
 end
 
@@ -85,6 +96,7 @@ local function paq(args)
 
     packages[reponame] = {
         branch = args.branch,
+        build  = args.build,
         opt    = args.opt,
         url    = args.url or GITHUB .. args[1] .. '.git',
     }
