@@ -14,12 +14,13 @@ end
 
 local function run_hook(hook, name, dir)
     local t = type(hook)
-    local ok
     if t == 'function' then
-        ok = pcall(hook)
+        local ok = pcall(hook)
         print_res('run hook for', name, ok) -- FIXME: How to print an interned string?
-    else if t == 'string' then
-        local hook_args, hook_cmd = {}
+
+    elseif t == 'string' then
+        local hook_args = {}
+        local hook_cmd
         for word in hook:gmatch("%S+") do
             table.insert(hook_args, word)
         end
