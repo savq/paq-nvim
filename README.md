@@ -65,11 +65,12 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 ## Options
 
-| Option | Type    |                              |
-|--------|---------|------------------------------|
-| branch | string  | Branch of the repository     |
-| opt    | boolean | Is the package optional?     |
-| url    | string  | URL of the remote repository |
+| Option | Type    |                                           |
+|--------|---------|-------------------------------------------|
+| branch | string  | Branch of the repository                  |
+| hook   | string  | Shell command to run after install/update |
+| opt    | boolean | Is the package optional?                  |
+| url    | string  | URL of the remote repository              |
 
 
 ## Moving from other package managers

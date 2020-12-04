@@ -127,8 +127,16 @@ The options are the following:
   Default value: `nil`
 
 
+`hook`
+  String with a shell command to be executed after a package installs or
+  updates (in the directory of the package). Useful for packages that
+  require extra configuration or building binaries.
+
+  Default value: `nil`
+
+
 `opt`
-  A boolean indicating whether the package is optional or not. If set,
+  Boolean indicating whether the package is optional or not. If set,
   the package will be in the optional packages directory. See |packages|
   and |packadd|.
 
@@ -136,7 +144,7 @@ The options are the following:
 
 
 `url`
-  A string indicating the URL of the git repository. This allows Paq to
+  String indicating the URL of the git repository. This allows Paq to
   download packages from any website; however, for convenience, if not set,
   Paq will try to find the repository on GitHub.com.
 
