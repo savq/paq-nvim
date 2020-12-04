@@ -12,18 +12,23 @@ local function print_res(action, args, ok)
     print(res .. action .. ' ' .. args)
 end
 
-local function run_hook(hook_str, name, dir)
-    local hook_cmd
-    local hook_args = {}
-    for word in hook_str:gmatch("%S+") do
-        table.insert(hook_args, word)
+local function run_hook(hook, name, dir)
+    local t = type(hook)
+    local ok
+    if t == 'function' then
+        ok = pcall(hook)
+        print_res('run hook for', name, ok) -- FIXME: How to print an interned string?
+    else if t == 'string' then
+        local hook_args, hook_cmd = {}
+        for word in hook:gmatch("%S+") do
+            table.insert(hook_args, word)
+        end
+        hook_cmd = table.remove(hook_args, 1)
+        call_cmd(hook_cmd, name, dir, "run `"..hook.."` for", hook_args)
     end
-    hook_cmd = table.remove(hook_args, 1)
-    return call_cmd(hook_cmd, name, dir, 'run `' .. hook_cmd .. '` for ', hook_args)
 end
 
-
-function call_cmd(cmd, name, dir, action, args, hook_str)
+function call_cmd(cmd, name, dir, action, args, hook)
     local handle
     handle =
         uv.spawn(cmd,
@@ -31,7 +36,7 @@ function call_cmd(cmd, name, dir, action, args, hook_str)
             vim.schedule_wrap(
                 function(code)
                     print_res(action, name, code == 0)
-                    if hook_str then run_hook(hook_str, name, dir) end
+                    if hook then run_hook(hook, name, dir) end
                     handle:close()
                 end
             )
