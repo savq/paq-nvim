@@ -15,6 +15,7 @@ end
 local function run_hook(hook, name, dir)
     local t = type(hook)
     if t == 'function' then
+        vim.cmd('packloadall!')
         local ok = pcall(hook)
         print_res('run hook for', name, ok) -- FIXME: How to print an interned string?
 
