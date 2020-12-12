@@ -121,7 +121,7 @@ as long as the name of the repository is the first thing on the table.
 The options are the following:
 
 `branch`
-  A string with the name of a branch of the git repository. If set,
+  String with the name of a branch of the git repository. If set,
   Paq will only download that specific branch.
 
   Default value: `nil`
@@ -132,20 +132,22 @@ The options are the following:
   a package. Useful for packages that require extra configuration or
   building binaries.
 
+  If a string, Paq will execute the string as a shell command in the 
+  directory of the package.
+
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
 
-  Note that the package will not be loaded the first time it installs,
-  so writing `vim.cmd'packadd <package>'` might be required if the
-  function calls any variable or function exported by the package.
+  NOTE: Packages have to be reloaded when a declaring a hook function,
+  so that functions can be found in newly installed packages.
+  This _will_ slow down the callback. This feature exists for the few
+  packages that define installation functions. Prefer using strings to
+  functions.
 
   Also note that you can wrap a VimL function like so:
 >
-    function foo() vim.fn['<name-of-viml-function>']() end
+    paq{ '<name-of-package>', hook=vim.fn['<name-of-viml-function>'] }
 <
-
-  If a string, Paq will execute the string as a shell command in the 
-  directory of the package.
 
   Default value: `nil`
 
