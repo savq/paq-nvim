@@ -10,6 +10,7 @@ local call_cmd      -- To handle mutual funtion recursion (Lua shenanigans)
 local function print_res(action, args, ok)
     local res = ok and 'Paq: ' or 'Paq: Failed to '
     print(res .. action .. ' ' .. args)
+    return ok
 end
 
 local function run_hook(hook, name, dir)
@@ -45,30 +46,19 @@ function call_cmd(cmd, name, dir, action, args, hook)
         )
 end
 
-local function install_pkg(name, dir, isdir, args)
-    local install_args
-    if not isdir then
-        if args.branch then
-            install_args = {'clone', args.url, '-b',  args.branch, '--single-branch', dir}
-        else
-            install_args = {'clone', args.url, dir}
-        end
-        call_cmd('git', name, dir, 'install', install_args, args.hook)
+local function install_pkg(pkg)
+    if pkg.exists then return end
+    local install_args = {'clone', pkg.url}
+    if pkg.branch then
+        vim.list_extend(install_args, {'-b',  pkg.branch})
     end
+    vim.list_extend(install_args, {pkg.dir})
+    call_cmd('git', pkg.name, pkg.dir, 'install', install_args, pkg.hook)
 end
 
-local function update_pkg(name, dir, isdir, args)
-    if isdir then
-        call_cmd('git', name, dir, 'update', {'pull'}, args.hook)
-    end
-end
-
-local function map_pkgs(fn)
-    local dir, isdir
-    for name, args in pairs(packages) do
-        dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
-        isdir = vim.fn.isdirectory(dir) ~= 0
-        fn(name, dir, isdir, args)
+local function update_pkg(pkg)
+    if not pkg.exists then
+        call_cmd('git', pkg.name, pkg.dir, 'update', {'pull'}, pkg.hook)
     end
 end
 
@@ -95,27 +85,26 @@ local function rmdir(dir, ispkgdir)
 end
 
 local function paq(args)
-    if type(args) == 'string' then
-        args = {args}
-    end
+    if type(args) == 'string' then args = {args} end
 
     local reponame = args[1]:match(REPO_RE)
-    if not reponame then
-        print_res('parse', args[1])
-        return
-    end
+    if not reponame then return print_res('parse', args[1]) end
+
+    local dir = PATH .. (args.opt and 'opt/' or 'start/') .. reponame
 
     packages[reponame] = {
+        name   = reponame,
         branch = args.branch,
+        dir    = dir,
+        exists = vim.fn.isdirectory(dir) ~= 0,
         hook   = args.hook,
-        opt    = args.opt,
         url    = args.url or GITHUB .. args[1] .. '.git',
     }
 end
 
 return {
-    install = function() map_pkgs(install_pkg) end,
-    update  = function() map_pkgs(update_pkg) end,
+    install = function() vim.tbl_map(install_pkg, packages) end,
+    update  = function() vim.tbl_map(update_pkg, packages) end,
     clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
-    paq     = paq
+    paq     = paq,
 }
