@@ -23,7 +23,7 @@ function call_proc(process, pkg, args, cwd)
                 t = type(pkg.hook)
                 if t == 'function' then
                     run_fn_hook(pkg.name, pkg.hook)
-                else if t == 'string' then
+                elseif t == 'string' then
                     run_shell_hook(pkg)
                 end
             end)
