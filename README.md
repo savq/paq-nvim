@@ -26,13 +26,16 @@ git clone https://github.com/savq/paq-nvim.git \
 
 ## Usage
 
-In your init.vim, you can write something like:
+In your init.vim (or init.lua), you can write something like:
 
 ```lua
 lua << EOF
 
 vim.cmd 'packadd paq-nvim'         -- Load package
 local paq = require'paq-nvim'.paq  -- Import module and bind `paq` function
+paq{'savq/paq-nvim', opt=true}     -- Let Paq manage itself
+
+-- Add your packages
 
 paq 'neovim/nvim-lspconfig'
 paq 'nvim-lua/completion-nvim'
