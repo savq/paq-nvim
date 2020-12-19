@@ -19,13 +19,13 @@ function call_proc(process, pkg, args, cwd)
         uv.spawn(process, {args=args, cwd=cwd},
             vim.schedule_wrap( function (code)
                 print_res(args[1] or process, pkg.name, code == 0)
+                handle:close()
                 t = type(pkg.hook)
-                if t = 'function' then
+                if t == 'function' then
                     run_fn_hook(pkg.name, pkg.hook)
-                else if t = 'string' then
+                else if t == 'string' then
                     run_shell_hook(pkg)
                 end
-                handle:close()
             end)
         )
 end
