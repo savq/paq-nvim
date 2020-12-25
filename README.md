@@ -43,6 +43,9 @@ paq 'nvim-lua/lsp_extensions.nvim'
 
 paq{'lervag/vimtex', opt=true}     -- Use braces when passing options
 
+-- Use as to override the default package name (here `vim`)
+paq{'dracula/vim', as='dracula'}
+
 EOF
 ```
 
@@ -62,6 +65,7 @@ inside a Lua chunk (or in a separate Lua module).
 
 | Option | Type     |                                                           |
 |--------|----------|-----------------------------------------------------------|
+| as     | string   | Name to use for the package                               |
 | branch | string   | Branch of the repository                                  |
 | hook   | string   | Shell command to run after install/update                 |
 | hook   | function | Lua function to run after install/update                  |
