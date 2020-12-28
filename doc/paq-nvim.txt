@@ -39,7 +39,7 @@ FEATURES                                                        *paq-features*
 
 - Fast installation and updating using Nvim's |loop|
 
-- Small implementation, around 100 LOC
+- Small implementation, around 150 LOC
 
 
 ==============================================================================
@@ -63,8 +63,6 @@ To get started with Paq:
 <
 
  3. Run the `:PaqInstall` command.
-
- 4. Run `:helptags ALL` to generate the helptags for newly installed packages.
 
 That's it!
 
@@ -112,6 +110,7 @@ imported as `Paq`, we have:
   configuration.
 
 
+
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
 
@@ -138,12 +137,6 @@ The options are the following:
 
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
-
-  NOTE: Packages have to be reloaded when a declaring a hook function,
-  so that functions can be found in newly installed packages.
-  This _will_ slow down the callback. This feature exists for the few
-  packages that define installation functions. Prefer using strings to
-  functions.
 
   Also note that you can wrap a VimL function like so:
 >

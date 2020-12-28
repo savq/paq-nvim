@@ -6,7 +6,7 @@ Paq is a Neovim package manager written in Lua.
 
 - __Simple__: Easy to use and configure
 - __Fast__:   Installs and updates packages concurrently using Nvim's event-loop
-- __Small__:  Around 100 LOC
+- __Small__:  Around 150 LOC
 
 
 ## Requirements
@@ -51,14 +51,6 @@ Then, run `:PaqInstall`.
 In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
 inside a Lua chunk (or in a separate Lua module).
 
-Paq can also import packages from websites other than GitHub.com
-using the `url` option (refer to the
-[documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)).
-
-NOTE: Paq doesn't generate helptags.
-To generate helptags after installing a plugin, just run `:helptags ALL`.
-
-
 ## Commands
 
 - `PaqInstall`: Install all packages listed in your configuration.
@@ -68,12 +60,16 @@ To generate helptags after installing a plugin, just run `:helptags ALL`.
 
 ## Options
 
-| Option | Type     |                                           |
-|--------|----------|-------------------------------------------|
-| branch | string   | Branch of the repository                  |
-| hook   | string   | Shell command to run after install/update |
-| opt    | boolean  | Is the package optional?                  |
-| url    | string   | URL of the remote repository              |
+| Option | Type     |                                                           |
+|--------|----------|-----------------------------------------------------------|
+| branch | string   | Branch of the repository                                  |
+| hook   | string   | Shell command to run after install/update                 |
+| hook   | function | Lua function to run after install/update                  |
+| opt    | boolean  | Is the package optional?                                  |
+| url    | string   | URL of the remote repository, useful for non-GitHub repos |
+
+For more details on each option, refer to the
+[documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
 
 
 ## Moving from other package managers
