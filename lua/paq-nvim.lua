@@ -7,19 +7,44 @@ local uv = vim.loop -- Alias for Neovim's event loop (libuv)
 local packages = {} -- Table of 'name':{options} pairs
 local run_hook      -- To handle mutual funtion recursion
 
-local function print_res(cmd, name, ok)
-    local res = ok and 'Paq: ' or 'Paq: Failed to '
-    print(res .. cmd .. ' ' .. name)
+local msgs = {clone = 'cloned', pull = 'pulled changes for', remove = 'removed'}
+
+local num_pkgs = 0
+local counters = {
+    clone = {ok = 0, fail = 0},
+    pull = {ok = 0, fail = 0},
+    remove = {ok = 0, fail = 0},
+}
+
+local function inc(counter, result)
+    counters[counter][result] = counters[counter][result] + 1
+end
+
+local function output_result(num, total, operation, name, ok)
+    local result = ok and msgs[operation] or 'Failed to ' .. operation
+    print(string.format('Paq [%d/%d] %s %s', num, total, result, name))
+    --TODO: Write log
     return ok
 end
 
-function call_proc(process, pkg, args, cwd)
-    local handle, t
+local function count_ops(operation, name, ok)
+    local result = ok and 'ok' or 'fail'
+    inc(operation, result)
+    output_result(counters[operation][result], num_pkgs, operation, name,  ok)
+    if counters[operation].ok + counters[operation].fail == num_pkgs then
+        counters[operation].ok, counters[operation].fail = 0, 0
+        vim.cmd 'packloadall! | helptags ALL'
+    end
+    return ok
+end
+
+local function call_proc(process, pkg, args, cwd)
+    local handle, t, num
     handle =
         uv.spawn(process, {args=args, cwd=cwd},
             vim.schedule_wrap( function (code)
-                print_res(args[1] or process, pkg.name, code == 0)
                 handle:close()
+                count_ops(args[1] or process, pkg.name, code == 0)
                 t = type(pkg.hook)
                 if t == 'function' then
                     run_fn_hook(pkg.name, pkg.hook)
@@ -31,9 +56,8 @@ function call_proc(process, pkg, args, cwd)
 end
 
 local function run_fn_hook(name, hook)
-    vim.cmd('packloadall!')
     local ok = pcall(hook)
-    print_res('run hook for', name, ok)
+    --print('run hook for', name, ok) -- TODO
 end
 
 local function run_shell_hook(pkg)
@@ -48,7 +72,7 @@ end
 
 local function install_pkg(pkg)
     local install_args = {'clone', pkg.url}
-    if pkg.exists then return end
+    if pkg.exists then return inc('clone', 'ok') end
     if pkg.branch then
         vim.list_extend(install_args, {'-b',  pkg.branch})
     end
@@ -57,7 +81,7 @@ local function install_pkg(pkg)
 end
 
 local function update_pkg(pkg)
-    if not pkg.exists then
+    if pkg.exists then
         call_proc('git', pkg, {'pull'}, pkg.dir)
     end
 end
@@ -74,7 +98,7 @@ local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
                 ok = true
             else --package isn't listed, remove it
                 ok = rmdir(child)
-                print_res('uninstall', name, ok)
+                count_ops('remove', name, ok)
             end
         else --it's an arbitrary directory or file
             ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
@@ -87,8 +111,12 @@ end
 local function paq(args)
     if type(args) == 'string' then args = {args} end
 
+    num_pkgs = num_pkgs + 1
+
     local reponame = args[1]:match(REPO_RE)
-    if not reponame then return print_res('parse', args[1]) end
+    if not reponame then
+        return output_result(num_pkgs, num_pkgs, 'parse', args[1])
+    end
 
     local dir = PATH .. (args.opt and 'opt/' or 'start/') .. reponame
 
