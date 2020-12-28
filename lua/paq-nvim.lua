@@ -7,7 +7,12 @@ local uv = vim.loop -- Alias for Neovim's event loop (libuv)
 local packages = {} -- Table of 'name':{options} pairs
 local run_hook      -- To handle mutual funtion recursion
 
-local msgs = {clone = 'cloned', pull = 'pulled changes for', remove = 'removed'}
+local msgs = {
+    clone = 'cloned',
+    pull = 'pulled changes for',
+    remove = 'removed',
+    ['run hook for'] = 'ran hook for',
+}
 
 local num_pkgs = 0
 local counters = {
@@ -28,46 +33,47 @@ local function output_result(num, total, operation, name, ok)
 end
 
 local function count_ops(operation, name, ok)
+    local op = counters[operation]
     local result = ok and 'ok' or 'fail'
     inc(operation, result)
-    output_result(counters[operation][result], num_pkgs, operation, name,  ok)
-    if counters[operation].ok + counters[operation].fail == num_pkgs then
-        counters[operation].ok, counters[operation].fail = 0, 0
+    output_result(op[result], num_pkgs, operation, name,  ok)
+    if op.ok + op.fail == num_pkgs then
+        op.ok, op.fail = 0, 0
         vim.cmd 'packloadall! | helptags ALL'
     end
     return ok
 end
 
-local function call_proc(process, pkg, args, cwd)
-    local handle, t, num
+local function call_proc(process, pkg, args, cwd, ishook)
+    local handle, t
     handle =
         uv.spawn(process, {args=args, cwd=cwd},
             vim.schedule_wrap( function (code)
                 handle:close()
-                count_ops(args[1] or process, pkg.name, code == 0)
-                t = type(pkg.hook)
-                if t == 'function' then
-                    run_fn_hook(pkg.name, pkg.hook)
-                elseif t == 'string' then
-                    run_shell_hook(pkg)
+                if not ishook then --(to prevent infinite recursion)
+                    run_hook(pkg) --maybe NO-OP
+                    count_ops(args[1] or process, pkg.name, code == 0)
+                else --hooks aren't counted
+                    output_result(0, 0, 'run hook for', pkg.name, code == 0)
                 end
             end)
         )
 end
 
-local function run_fn_hook(name, hook)
-    local ok = pcall(hook)
-    --print('run hook for', name, ok) -- TODO
-end
-
-local function run_shell_hook(pkg)
-    local process
-    local args = {}
-    for word in pkg.hook:gmatch("%S+") do
-        table.insert(args, word)
+function run_hook(pkg) --(already defined as local)
+    local t = type(pkg.hook)
+    if t == 'function' then
+        local ok = pcall(pkg.hook)
+        output_result(0, 0, 'run hook for', pkg.name, ok)
+    elseif t == 'string' then
+        local process
+        local args = {}
+        for word in pkg.hook:gmatch("%S+") do
+            table.insert(args, word)
+        end
+        process = table.remove(args, 1)
+        call_proc(process, pkg, args, pkg.dir, true)
     end
-    process = table.remove(hook_args, 1)
-    call_proc(process, pkg, args, pkg.dir)
 end
 
 local function install_pkg(pkg)
