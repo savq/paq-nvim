@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Nvim version 0.5  Last change: 2020-10-22
+*paq-nvim.txt*  Package manager for Nvim version 0.5  Last change: 2021-01-17
 *paq-nvim*
 
 Author: Sergio Alejandro Vargas    <savargasqu+git@unal.edu.co>
@@ -169,7 +169,7 @@ The options are the following:
   download packages from any website; however, for convenience, if not set,
   Paq will try to find the repository on GitHub.com.
 
-  Default value: `'https://github.com/'..'<GitHub-username>/<repository-name>'`
+  Default value: `'https://github.com/'..'<GitHub-username>/<repo-name>'`
 
 
 Example~
