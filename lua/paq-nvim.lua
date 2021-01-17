@@ -119,7 +119,7 @@ local function paq(args)
 
     num_pkgs = num_pkgs + 1
 
-    local reponame = args[1]:match(REPO_RE)
+    local reponame = args.as or args[1]:match(REPO_RE)
     if not reponame then
         return output_result(num_pkgs, num_pkgs, 'parse', args[1])
     end

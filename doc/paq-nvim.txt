@@ -120,6 +120,16 @@ as long as the name of the repository is the first thing on the table.
 
 The options are the following:
 
+`as`
+  String indicating the alias or name of the plugin, which determines the name
+  of the directory where Paq will download the plugin.
+
+  If left unspecified, Paq will infer it from the plugin string. For
+  `'<GitHub-username>/<repo-name>'` that is `<repo-name>`.
+
+  Default value: `nil`
+
+
 `branch`
   String with the name of a branch of the git repository. If set,
   Paq will only download that specific branch.
