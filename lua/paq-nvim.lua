@@ -100,7 +100,7 @@ local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
         if not name then break end
         child = dir .. '/' .. name
         if is_pack_dir then --check which packages are listed
-            if packages[name] and packages[name].dir == dir .. name then --do nothing
+            if packages[name] and packages[name].dir == child then --do nothing
                 ok = true
             else --package isn't listed, remove it
                 ok = rmdir(child)
@@ -139,6 +139,6 @@ end
 return {
     install = function() vim.tbl_map(install_pkg, packages) end,
     update  = function() vim.tbl_map(update_pkg, packages) end,
-    clean   = function() rmdir(PATH..'start/', 1); rmdir(PATH..'opt/', 1) end,
+    clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
     paq     = paq,
 }
