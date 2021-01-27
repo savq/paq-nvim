@@ -75,7 +75,10 @@ For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
 
 
-## Moving from other package managers
+## Related projects
 
-The [docs](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt)
-include a section on moving from Vim-plug or Minpac to Paq.
+Vim and Neovim have no shortage of package managers.
+You can find a [comparison](https://github.com/savq/paq-nvim/wiki/Comparisons)
+with [Packer.nvim](https://github.com/wbthomason/packer.nvim),
+and a [migration guide](https://github.com/savq/paq-nvim/wiki/Migration)
+from Vim8 plugin managers in the [wiki](https://github.com/savq/paq-nvim/wiki).
