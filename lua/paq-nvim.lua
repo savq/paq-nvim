@@ -24,29 +24,29 @@ local counters = {
 -- Helper functions to replace 0.5 features
 
 local function tbl_map(func, t)
-	if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
-		return vim.tbl_map(func, t)
-	else
-		-- TODO: validation?
-		local rettab = {}
-		for k, v in pairs(t) do
-			rettab[k] = func(v)
-		end
-		return rettab
-	end
+    if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+        return vim.tbl_map(func, t)
+    else
+        -- TODO: validation?
+        local rettab = {}
+        for k, v in pairs(t) do
+            rettab[k] = func(v)
+        end
+        return rettab
+    end
 end
 
 -- Warning: This mutates dst!
 local function list_extend(dst, src, start, finish)
-	if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
-		return vim.list_extend(func, t)
-	else
-		-- TODO: validation?
-		for i = start or 1, finish or #src do
-			table.insert(dst, src[i])
-		end
-		return dst
-	end
+    if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+        return vim.list_extend(func, t)
+    else
+        -- TODO: validation?
+        for i = start or 1, finish or #src do
+            table.insert(dst, src[i])
+        end
+        return dst
+    end
 
 end
 
@@ -101,7 +101,6 @@ function run_hook(pkg) --(already defined as local)
             table.insert(args, word)
         end
         process = table.remove(args, 1)
-	print(process)
         call_proc(process, pkg, args, pkg.dir, true)
     end
 end
