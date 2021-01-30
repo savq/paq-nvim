@@ -12,7 +12,12 @@ Paq is a Neovim package manager written in Lua.
 ## Requirements
 
 - git
-- [Neovim](https://github.com/neovim/neovim) 0.5
+- [Neovim](https://github.com/neovim/neovim) 0.4.4 (stable)
+
+NOTE: Previous versions of Paq required Neovim 0.5.
+That's still available in the branch `neovim-0.5`,
+and some of it will be brought back once Neovim 0.5 becomes stable.
+
 
 ## Installation
 
