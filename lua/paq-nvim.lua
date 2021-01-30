@@ -39,7 +39,7 @@ end
 -- Warning: This mutates dst!
 local function list_extend(dst, src, start, finish)
     if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
-        return vim.list_extend(func, t)
+        return vim.list_extend(dst, src, start, finish)
     else
         -- TODO: validation?
         for i = start or 1, finish or #src do
