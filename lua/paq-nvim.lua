@@ -1,5 +1,5 @@
 -- Constants
-local PATH    = vim.fn.stdpath('data') .. '/site/pack/paqs/'
+local PATH    = vim.api.nvim_call_function('stdpath', {'data'}) .. '/site/pack/paqs/'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 
@@ -21,6 +21,35 @@ local counters = {
     remove = {ok = 0, fail = 0},
 }
 
+-- Helper functions to replace 0.5 features
+
+local function tbl_map(func, t)
+	if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+		return vim.tbl_map(func, t)
+	else
+		-- TODO: validation?
+		local rettab = {}
+		for k, v in pairs(t) do
+			rettab[k] = func(v)
+		end
+		return rettab
+	end
+end
+
+-- Warning: This mutates dst!
+local function list_extend(dst, src, start, finish)
+	if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+		return vim.list_extend(func, t)
+	else
+		-- TODO: validation?
+		for i = start or 1, finish or #src do
+			table.insert(dst, src[i])
+		end
+		return dst
+	end
+
+end
+
 local function inc(counter, result)
     counters[counter][result] = counters[counter][result] + 1
 end
@@ -39,7 +68,7 @@ local function count_ops(operation, name, ok)
     output_result(op[result], num_pkgs, operation, name,  ok)
     if op.ok + op.fail == num_pkgs then
         op.ok, op.fail = 0, 0
-        vim.cmd 'packloadall! | helptags ALL'
+        vim.api.nvim_command 'packloadall! | helptags ALL'
     end
     return ok
 end
@@ -72,6 +101,7 @@ function run_hook(pkg) --(already defined as local)
             table.insert(args, word)
         end
         process = table.remove(args, 1)
+	print(process)
         call_proc(process, pkg, args, pkg.dir, true)
     end
 end
@@ -80,9 +110,9 @@ local function install_pkg(pkg)
     local install_args = {'clone', pkg.url}
     if pkg.exists then return inc('clone', 'ok') end
     if pkg.branch then
-        vim.list_extend(install_args, {'-b',  pkg.branch})
+        list_extend(install_args, {'-b',  pkg.branch})
     end
-    vim.list_extend(install_args, {pkg.dir})
+    list_extend(install_args, {pkg.dir})
     call_proc('git', pkg, install_args)
 end
 
@@ -100,7 +130,7 @@ local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
         if not name then break end
         child = dir .. '/' .. name
         if is_pack_dir then --check which packages are listed
-            if packages[name] and packages[name].dir == dir .. name then --do nothing
+            if packages[name] and packages[name].dir == child then --do nothing
                 ok = true
             else --package isn't listed, remove it
                 ok = rmdir(child)
@@ -130,15 +160,15 @@ local function paq(args)
         name   = reponame,
         branch = args.branch,
         dir    = dir,
-        exists = (vim.fn.isdirectory(dir) ~= 0),
+        exists = (vim.api.nvim_call_function('isdirectory', {dir}) ~= 0),
         hook   = args.hook,
         url    = args.url or GITHUB .. args[1] .. '.git',
     }
 end
 
 return {
-    install = function() vim.tbl_map(install_pkg, packages) end,
-    update  = function() vim.tbl_map(update_pkg, packages) end,
-    clean   = function() rmdir(PATH..'start/', 1); rmdir(PATH..'opt/', 1) end,
+    install = function() tbl_map(install_pkg, packages) end,
+    update  = function() tbl_map(update_pkg, packages) end,
+    clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
     paq     = paq,
 }
