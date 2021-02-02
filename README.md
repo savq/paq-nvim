@@ -21,13 +21,19 @@ and some of it will be brought back once Neovim 0.5 becomes stable.
 
 ## Installation
 
-Clone this repository:
+Clone this repository.
+
+For UNIX-like systems:
 
 ```sh
 git clone https://github.com/savq/paq-nvim.git \
     "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/pack/paqs/opt/paq-nvim
 ```
 
+For Windows:
+```
+git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\opt\paq-nvim"
+```
 
 ## Usage
 
