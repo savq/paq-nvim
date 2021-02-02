@@ -1,7 +1,9 @@
 -- Constants
 local PATH    = vim.api.nvim_call_function('stdpath', {'data'}) .. '/site/pack/paqs/'
+local LOGFILE = vim.api.nvim_call_function('stdpath', {'cache'}) .. 'paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
+local DATEFMT = '%F T %H:%M:%S%z'
 
 local uv = vim.loop -- Alias for Neovim's event loop (libuv)
 local packages = {} -- Table of 'name':{options} pairs
@@ -45,6 +47,7 @@ local function list_extend(dst, src, start, finish)
     return dst
 end
 
+
 local function inc(counter, result)
     counters[counter][result] = counters[counter][result] + 1
 end
@@ -52,7 +55,6 @@ end
 local function output_result(num, total, operation, name, ok)
     local result = ok and msgs[operation] or 'Failed to ' .. operation
     print(string.format('Paq [%d/%d] %s %s', num, total, result, name))
-    --TODO: Write log
     return ok
 end
 
@@ -68,20 +70,36 @@ local function count_ops(operation, name, ok)
     return ok
 end
 
+local function on_proc_read(err, chunk)
+    -- TODO use libuv functions
+    local logfile = io.open(LOGFILE, 'a+')
+    if err then
+        -- TODO handle read error
+    elseif chunk then
+        logfile:write(os.date(DATEFMT), '\n', chunk)
+    end
+    logfile:close()
+end
+
 local function call_proc(process, pkg, args, cwd, ishook)
-    local handle, t
+    local handle, ok
+    local stderr = uv.new_pipe(false)
     handle =
-        uv.spawn(process, {args=args, cwd=cwd},
+        uv.spawn(process, {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
             vim.schedule_wrap( function (code)
+                stderr:read_stop()
+                stderr:close()
                 handle:close()
-                if not ishook then --(to prevent infinite recursion)
-                    run_hook(pkg) --maybe NO-OP
-                    count_ops(args[1] or process, pkg.name, code == 0)
+                ok = (code == 0)
+                if not ishook then
+                    run_hook(pkg)
+                    count_ops(args[1] or process, pkg.name, ok)
                 else --hooks aren't counted
-                    output_result(0, 0, 'run hook for', pkg.name, code == 0)
+                    output_result(0, 0, 'run hook for', pkg.name, ok)
                 end
             end)
         )
+    stderr:read_start(on_proc_read)
 end
 
 function run_hook(pkg) --(already defined as local)
