@@ -26,28 +26,23 @@ local counters = {
 local function tbl_map(func, t)
     if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
         return vim.tbl_map(func, t)
-    else
-        -- TODO: validation?
-        local rettab = {}
-        for k, v in pairs(t) do
-            rettab[k] = func(v)
-        end
-        return rettab
     end
+    local rettab = {}
+    for k, v in pairs(t) do
+        rettab[k] = func(v)
+    end
+    return rettab
 end
 
 -- Warning: This mutates dst!
 local function list_extend(dst, src, start, finish)
     if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
         return vim.list_extend(dst, src, start, finish)
-    else
-        -- TODO: validation?
-        for i = start or 1, finish or #src do
-            table.insert(dst, src[i])
-        end
-        return dst
     end
-
+    for i = start or 1, finish or #src do
+        table.insert(dst, src[i])
+    end
+    return dst
 end
 
 local function inc(counter, result)
