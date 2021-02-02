@@ -23,7 +23,7 @@ and some of it will be brought back once Neovim 0.5 becomes stable.
 
 Clone this repository.
 
-For UNIX-like systems:
+For Unix-like systems:
 
 ```sh
 git clone https://github.com/savq/paq-nvim.git \
