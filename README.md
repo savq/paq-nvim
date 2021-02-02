@@ -35,6 +35,11 @@ For Windows:
 git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\opt\paq-nvim"
 ```
 
+Note that Paq uses Neovim's event loop (libuv) for OS-dependent operations,
+things should work the same on all operating systems, but the maintainer can't guarantee that.
+If some things fail on Windows make sure to leave an issue.
+
+
 ## Usage
 
 In your init.vim (or init.lua), you can write something like:
