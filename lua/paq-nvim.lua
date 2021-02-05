@@ -1,6 +1,6 @@
 -- Constants
 local PATH    = vim.api.nvim_call_function('stdpath', {'data'}) .. '/site/pack/paqs/'
-local LOGFILE = vim.api.nvim_call_function('stdpath', {'cache'}) .. 'paq.log'
+local LOGFILE = vim.api.nvim_call_function('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local DATEFMT = '%F T %H:%M:%S%z'
@@ -70,26 +70,22 @@ local function count_ops(operation, name, ok)
     return ok
 end
 
-local function on_proc_read(err, chunk)
-    -- TODO use libuv functions
-    local logfile = io.open(LOGFILE, 'a+')
-    if err then
-        -- TODO handle read error
-    elseif chunk then
-        logfile:write(os.date(DATEFMT), '\n', chunk)
-    end
-    logfile:close()
-end
-
 local function call_proc(process, pkg, args, cwd, ishook)
-    local handle, ok
-    local stderr = uv.new_pipe(false)
+    local log, stderr, handle, ok
+
+    log = uv.fs_open(LOGFILE, 'a+', 0x1A4) -- FIXME: Write in terms of uv.constants
+    stderr = uv.new_pipe(false)
+    stderr:open(log)
+
     handle =
-        uv.spawn(process, {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
+        uv.spawn(process,
+            {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
             vim.schedule_wrap( function (code)
-                stderr:read_stop()
+                uv.fs_write(log, '\n\n', -1) --space out error messages
                 stderr:close()
                 handle:close()
+                uv.fs_close(log)
+
                 ok = (code == 0)
                 if not ishook then
                     run_hook(pkg)
@@ -99,7 +95,6 @@ local function call_proc(process, pkg, args, cwd, ishook)
                 end
             end)
         )
-    stderr:read_start(on_proc_read)
 end
 
 function run_hook(pkg) --(already defined as local)
