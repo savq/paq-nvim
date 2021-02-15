@@ -173,6 +173,14 @@ local function paq(args)
     }
 end
 
+local function setup(args)
+    assert(type(args) == 'table', 'Paq.setup takes a single table argument')
+
+    if type(args.path) == 'string' then
+        PATH = args.path --FIXME: should probably rename PATH
+    end
+end
+
 return {
     install = function() tbl_map(install_pkg, packages) end,
     update  = function() tbl_map(update_pkg, packages) end,
