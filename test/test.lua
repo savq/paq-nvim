@@ -18,15 +18,15 @@ local paq = Pq.paq
 
 paq{'rust-lang/rust.vim', opt=true}
 paq{'JuliaEditorSupport/julia-vim', as='julia'}
-paq{'junegunn/fzf', hook=vim.fn['fzf#install'] }
+paq{'junegunn/fzf', run=vim.fn['fzf#install'] }
 paq{'autozimu/LanguageClient-neovim',
     branch = 'next',
-    hook = 'bash install.sh',
+    run = 'bash install.sh',
     }
 
 
 Pq.install()
-vim.cmd('sleep 10') -- plenty of time for plugins to download
+vim.cmd('sleep 20') -- plenty of time for plugins to download
 
 assert(uv.fs_scandir(testpath .. 'opt/rust.vim'))
 assert(uv.fs_scandir(testpath .. 'start/julia'))
@@ -56,7 +56,7 @@ end
 
 test_branch()
 
-vim.cmd('sleep 5') -- plenty of time for plugins to download
+vim.cmd('sleep 20')
 Pq = reload_paq()
 Pq.clean()
 

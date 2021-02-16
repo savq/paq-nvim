@@ -82,14 +82,16 @@ inside a Lua chunk (or in a separate Lua module).
 |--------|----------|-----------------------------------------------------------|
 | as     | string   | Name to use for the package locally                       |
 | branch | string   | Branch of the repository                                  |
-| hook   | string   | Shell command to run after install/update                 |
-| hook   | function | Lua function to run after install/update                  |
 | opt    | boolean  | Is the package optional?                                  |
+| run    | string   | Shell command to run after install/update                 |
+| run    | function | Lua function to run after install/update                  |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |
 
 For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
 
+NOTICE:
+The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` instead.
 
 ## Related projects
 

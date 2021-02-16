@@ -83,16 +83,16 @@ end
 
 function run_hook(pkg) --(already defined as local)
     local t, process, args, ok
-    t = type(pkg.hook)
+    t = type(pkg.run)
 
     if t == 'function' then
         vim.cmd('packadd ' .. pkg.name)
-        local ok = pcall(pkg.hook)
+        local ok = pcall(pkg.run)
         output_result('run hook for', pkg.name, ok)
 
     elseif t == 'string' then
         args = {}
-        for word in pkg.hook:gmatch('%S+') do
+        for word in pkg.run:gmatch('%S+') do
             table.insert(args, word)
         end
         process = table.remove(args, 1)
@@ -156,7 +156,7 @@ local function paq(args)
         branch = args.branch,
         dir    = dir,
         exists = (vim.api.nvim_call_function('isdirectory', {dir}) ~= 0),
-        hook   = args.hook,
+        run    = args.run or args.hook, --wait for paq 1.0 to deprecate
         url    = args.url or GITHUB .. args[1] .. '.git',
     }
 end

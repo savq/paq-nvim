@@ -136,7 +136,7 @@ The options are the following:
   Default value: `nil`
 
 
-`hook`
+`run`
   Either a string or a function to be executed after installing or updating
   a package. Useful for packages that require extra configuration or
   building binaries.
@@ -149,10 +149,14 @@ The options are the following:
 
   Also note that you can wrap a VimL function like so:
 >
-    paq{ '<name-of-package>', hook=vim.fn['<name-of-viml-function>'] }
+    paq{ '<name-of-package>', run=vim.fn['<name-of-viml-function>'] }
 <
 
   Default value: `nil`
+
+
+`hook`
+  Deprecated. Use the `run` option instead.
 
 
 `opt`
