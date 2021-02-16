@@ -185,5 +185,6 @@ return {
     install = function() tbl_map(install_pkg, packages) end,
     update  = function() tbl_map(update_pkg, packages) end,
     clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
+    setup   = setup,
     paq     = paq,
 }
