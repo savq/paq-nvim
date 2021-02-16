@@ -26,7 +26,7 @@ paq{'autozimu/LanguageClient-neovim',
 
 
 Pq.install()
-vim.cmd('sleep 15') -- plenty of time for plugins to download
+vim.cmd('sleep 10') -- plenty of time for plugins to download
 
 assert(uv.fs_scandir(testpath .. 'opt/rust.vim'))
 assert(uv.fs_scandir(testpath .. 'start/julia'))

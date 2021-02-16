@@ -43,12 +43,16 @@ function _nvim.list_extend(dst, src, start, finish)
 end
 
 local function output_result(op, name, ok) -- TODO: rename this function
-    local c = ops[op]
-    local result = ok and 'ok' or 'fail'
-    c[result] = c[result] + 1 -- update count
+    local c, result, msg, total
 
-    local msg = ok and c.past or 'Failed to ' .. op
-    print(string.format('Paq [%d/%d] %s %s', c[result], num_pkgs, msg, name))
+    result = ok and 'ok' or 'fail'
+    c = ops[op]
+    c[result] = c[result] + 1
+
+    total = (op == 'run hook for') and 0 or num_pkgs
+    msg = ok and c.past or 'Failed to ' .. op
+
+    print(string.format('Paq [%d/%d] %s %s', c[result], total, msg, name))
 
     if c.ok + c.fail == num_pkgs then
         c.ok, c.fail = 0, 0
@@ -57,7 +61,7 @@ local function output_result(op, name, ok) -- TODO: rename this function
 end
 
 local function call_proc(process, pkg, args, cwd, ishook)
-    local log, stderr, handle, ok, op
+    local log, stderr, handle, op
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4) -- FIXME: Write in terms of uv.constants
     stderr = uv.new_pipe(false)
     stderr:open(log)
@@ -65,7 +69,7 @@ local function call_proc(process, pkg, args, cwd, ishook)
     handle = uv.spawn(
         process,
         {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
-        vim.schedule_wrap( function (code)
+        vim.schedule_wrap( function(code)
             uv.fs_write(log, '\n\n', -1) --space out error messages
             uv.fs_close(log)
             stderr:close()
@@ -82,6 +86,7 @@ function run_hook(pkg) --(already defined as local)
     t = type(pkg.hook)
 
     if t == 'function' then
+        vim.cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.hook)
         output_result('run hook for', pkg.name, ok)
 
