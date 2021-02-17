@@ -1,7 +1,10 @@
-vim.cmd('packadd paq-nvim')
+local cmd = vim.api.nvim_command
+local vfn = vim.api.nvim_call_function
+local uv  = vim.loop
 
-local uv = vim.loop
-local testpath = vim.fn.stdpath('data') .. '/site/pack/test/'
+cmd('packadd paq-nvim')
+
+local testpath = vfn('stdpath', {'data'}) .. '/site/pack/test/'
 
 local function reload_paq()
     local Pq
@@ -18,15 +21,14 @@ local paq = Pq.paq
 
 paq{'rust-lang/rust.vim', opt=true}
 paq{'JuliaEditorSupport/julia-vim', as='julia'}
-paq{'junegunn/fzf', run=vim.fn['fzf#install'] }
+paq{'junegunn/fzf', run=function() vfn('fzf#install', {}) end }
 paq{'autozimu/LanguageClient-neovim',
     branch = 'next',
     run = 'bash install.sh',
     }
 
-
 Pq.install()
-vim.cmd('sleep 20') -- plenty of time for plugins to download
+cmd('sleep 20') -- plenty of time for plugins to download
 
 assert(uv.fs_scandir(testpath .. 'opt/rust.vim'))
 assert(uv.fs_scandir(testpath .. 'start/julia'))
@@ -34,7 +36,7 @@ assert(uv.fs_scandir(testpath .. 'start/fzf'))
 assert(uv.fs_scandir(testpath .. 'start/LanguageClient-neovim'))
 
 local function test_branch()
-    local branch = 'next' --
+    local branch = 'next'
     local stdout = uv.new_pipe(false)
     local handle = uv.spawn( 'git', {
             cwd  = testpath .. 'start/LanguageClient-neovim',
@@ -56,7 +58,7 @@ end
 
 test_branch()
 
-vim.cmd('sleep 20')
+cmd('sleep 20')
 Pq = reload_paq()
 Pq.clean()
 
