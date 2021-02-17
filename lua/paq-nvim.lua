@@ -1,14 +1,17 @@
+-- Neovim 0.4 compat
+local _nvim = {} -- Helper functions to replace 0.5 features
+local cmd = vim.api.nvim_command
+local vfn = vim.api.nvim_call_function
+
 -- Constants
-local PATH    = vim.api.nvim_call_function('stdpath', {'data'}) .. '/site/pack/paqs/'
-local LOGFILE = vim.api.nvim_call_function('stdpath', {'cache'}) .. '/paq.log'
+local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
+local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local DATEFMT = '%F T %H:%M:%S%z'
 
-local uv = vim.loop -- Alias for Neovim's event loop (libuv)
+-- Globals
 local packages = {} -- Table of 'name':{options} pairs
-local run_hook      -- To handle mutual funtion recursion
-
 local num_pkgs = 0
 local ops = {
     clone            = {ok = 0, fail = 0, past = 'cloned'            },
@@ -17,11 +20,12 @@ local ops = {
     ['run hook for'] = {ok = 0, fail = 0, past = 'ran hook for'      },
 }
 
+local uv = vim.loop -- Alias for Neovim's event loop (libuv)
+local run_hook      -- To handle mutual funtion recursion
 
-local _nvim = {} -- Helper functions to replace 0.5 features
 
-function _nvim.tbl_map(func, t) --> table
-    if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+function _nvim.tbl_map(func, t)
+    if vfn('has', {'nvim-0.5'}) == 1 then
         return vim.tbl_map(func, t)
     end
     local rettab = {}
@@ -33,7 +37,7 @@ end
 
 -- Warning: This mutates dst!
 function _nvim.list_extend(dst, src, start, finish)
-    if vim.api.nvim_call_function('has', {'nvim-0.5'}) == 1 then
+    if vfn('has', {'nvim-0.5'}) == 1 then
         return vim.list_extend(dst, src, start, finish)
     end
     for i = start or 1, finish or #src do
@@ -42,7 +46,7 @@ function _nvim.list_extend(dst, src, start, finish)
     return dst
 end
 
-local function output_result(op, name, ok) -- TODO: rename this function
+local function output_result(op, name, ok)
     local c, result, msg, total
 
     result = ok and 'ok' or 'fail'
@@ -56,7 +60,7 @@ local function output_result(op, name, ok) -- TODO: rename this function
 
     if c.ok + c.fail == num_pkgs then
         c.ok, c.fail = 0, 0
-        vim.api.nvim_command('packloadall! | helptags ALL')
+        cmd('packloadall! | helptags ALL')
     end
 end
 
@@ -85,7 +89,7 @@ function run_hook(pkg) --(already defined as local)
     t = type(pkg.run)
 
     if t == 'function' then
-        vim.api.nvim_command('packadd ' .. pkg.name)
+        cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
         output_result('run hook for', pkg.name, ok)
 
@@ -154,7 +158,7 @@ local function paq(args)
         name   = name,
         branch = args.branch,
         dir    = dir,
-        exists = (vim.api.nvim_call_function('isdirectory', {dir}) ~= 0),
+        exists = (vfn('isdirectory', {dir}) ~= 0),
         run    = args.run or args.hook, --wait for paq 1.0 to deprecate
         url    = args.url or GITHUB .. args[1] .. '.git',
     }
@@ -173,6 +177,6 @@ return {
     clean     = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
     setup     = setup,
     paq       = paq,
-    log_open  = function() vim.api.nvim_command('sp ' .. LOGFILE) end,
+    log_open  = function() cmd('sp ' .. LOGFILE) end,
     log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
 }
