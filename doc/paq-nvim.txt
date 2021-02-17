@@ -1,5 +1,6 @@
-*paq-nvim.txt*  Package manager for Nvim version 0.4.4  Last change: 2021-01-29
+*paq-nvim.txt*  Package manager for Nvim version 0.4.4 Last change: 2021-02-17
 *paq-nvim*
+*paq*
 
 Author: Sergio Alejandro Vargas    <savargasqu+git@unal.edu.co>
 
