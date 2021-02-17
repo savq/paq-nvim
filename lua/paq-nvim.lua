@@ -56,7 +56,7 @@ local function output_result(op, name, ok) -- TODO: rename this function
 
     if c.ok + c.fail == num_pkgs then
         c.ok, c.fail = 0, 0
-        vim.api.nvim_command 'packloadall! | helptags ALL'
+        vim.api.nvim_command('packloadall! | helptags ALL')
     end
 end
 
@@ -65,12 +65,11 @@ local function call_proc(process, pkg, args, cwd, ishook)
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4) -- FIXME: Write in terms of uv.constants
     stderr = uv.new_pipe(false)
     stderr:open(log)
-
     handle = uv.spawn(
         process,
         {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
         vim.schedule_wrap( function(code)
-            uv.fs_write(log, '\n\n', -1) --space out error messages
+            uv.fs_write(log, '\n', -1) --space out error messages
             uv.fs_close(log)
             stderr:close()
             handle:close()
@@ -86,7 +85,7 @@ function run_hook(pkg) --(already defined as local)
     t = type(pkg.run)
 
     if t == 'function' then
-        vim.cmd('packadd ' .. pkg.name)
+        vim.api.nvim_command('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
         output_result('run hook for', pkg.name, ok)
 
@@ -169,9 +168,11 @@ local function setup(args)
 end
 
 return {
-    install = function() _nvim.tbl_map(install_pkg, packages) end,
-    update  = function() _nvim.tbl_map(update_pkg, packages) end,
-    clean   = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
-    setup   = setup,
-    paq     = paq,
+    install   = function() _nvim.tbl_map(install_pkg, packages) end,
+    update    = function() _nvim.tbl_map(update_pkg, packages) end,
+    clean     = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
+    setup     = setup,
+    paq       = paq,
+    log_open  = function() vim.api.nvim_command('sp ' .. LOGFILE) end,
+    log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
 }

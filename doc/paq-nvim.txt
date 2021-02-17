@@ -14,6 +14,7 @@ CONTENTS                                                        *paq-contents*
   Package options                                         |paq-options|
   Commands                                                |paq-commands|
   Paq directory                                           |paq-directory|
+  Paq log                                                 |paq-log|
 
 
 ==============================================================================
@@ -90,24 +91,30 @@ imported as `Paq`, we have:
 
 |Paq.install|                                                    *Paq.install*
                                                                *:PaqInstall*
-
   Install all packages listed on your configuration, if a package is already
   installed, the function ignores it.
 
 
 |Paq.update|                                                      *Paq.update*
                                                                 *:PaqUpdate*
-
   Update the installed packages listed on your configuration. If a package
   hasn't been installed with |PaqInstall|, the function ignores it.
 
 
 |Paq.clean|                                                        *Paq.clean*
                                                                  *:PaqClean*
-
   Remove packages that are on |paq-directory|, but aren't listed in your
   configuration.
 
+
+|Paq.log_open|                                                  *Paq.log_open*
+                                                               *:PaqLogOpen*
+  Open the |paq-log| file in a split window.
+
+
+|Paq.log_clean|                                                *Paq.log_clean*
+                                                              *:PaqLogClean*
+  Delete the |paq-log| file.
 
 
 ==============================================================================
@@ -184,7 +191,6 @@ we could call `paq` like:
     paq {'neoclide/coc.nvim', opt=true, branch='release'}
 <
 
-
 ==============================================================================
 PAQ DIRECTORY                                                  *paq-directory*
 
@@ -196,6 +202,16 @@ where Paq installs packages by running the command:
 <
 If you have packages that aren't managed by Paq, you shouldn't put them on
 Paq's directory, since |Paq.clean| could delete them.
+
+
+==============================================================================
+PAQ LOG                                                              *paq-log*
+
+Paq writes the `stderr` output of external processes to a log file.
+The log file can be found at:
+>
+    :echo stdpath('cache') .. '/paq.log'
+<
 
 ==============================================================================
  vim:tw=78:ts=8:noet:ft=help:norl:
