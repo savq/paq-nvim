@@ -118,6 +118,14 @@ imported as `Paq`, we have:
   Delete the |paq-log| file.
 
 
+|Paq.setup|                                                        *Paq.setup*
+
+  Function to configure specific global behavior. It takes as single input a
+  table, which can have a key `path` to overwrite the default value for
+  |paq-directory|. This functionality exists mainly to allow testing without
+  altering a user's configuration.
+
+
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
 
