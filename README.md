@@ -2,6 +2,7 @@
 
 Paq is a Neovim package manager written in Lua.
 
+
 ## Features
 
 - __Simple__: Easy to use and configure
@@ -13,10 +14,6 @@ Paq is a Neovim package manager written in Lua.
 
 - git
 - [Neovim](https://github.com/neovim/neovim) 0.4.4 (stable)
-
-NOTE: Previous versions of Paq required Neovim 0.5.
-That's still available in the branch `neovim-0.5`,
-and some of it will be brought back once Neovim 0.5 becomes stable.
 
 
 ## Installation
@@ -38,7 +35,7 @@ git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site
 
 ## Usage
 
-In your init.vim (or init.lua), you can write something like:
+In your init.vim or init.lua, you can write something like:
 
 ```lua
 lua << EOF
@@ -65,6 +62,7 @@ Then, run `:PaqInstall`.
 In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
 inside a Lua chunk (or in a separate Lua module).
 
+
 ## Commands
 
 - `PaqInstall`: Install all packages listed in your configuration.
@@ -88,6 +86,7 @@ For more details on each option, refer to the
 
 NOTICE:
 The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` instead.
+
 
 ## Related projects
 

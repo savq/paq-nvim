@@ -25,12 +25,14 @@ Paq is a Neovim package manager. It can install, update and remove packages
 from any valid git repository, and it includes a familiar shorthand for
 GitHub repositories.
 
-Paq is written in Lua; it uses the |loop| API to install and update
+Paq is written in Lua. It uses the |loop| API to install and update
 packages asynchronously, and it stores packages in |packpath| directories.
 
 Paq is for Nvim users who use Lua as their configuration language.
 It was written to be a wrapper around existing Nvim features, and to have
 a simple and familiar interface for declaring packages.
+
+NOTE: Requirements and installation instructions can be found in the README.
 
 
 ------------------------------------------------------------------------------
