@@ -51,16 +51,18 @@ local function output_result(op, name, ok)
 
     result = ok and 'ok' or 'fail'
     c = ops[op]
-    c[result] = c[result] + 1
+    if c ~= nil then
+        c[result] = c[result] + 1
 
-    total = (op == 'run hook for') and 0 or num_pkgs
-    msg = ok and c.past or 'Failed to ' .. op
+        total = (op == 'run hook for') and 0 or num_pkgs
+        msg = ok and c.past or 'Failed to ' .. op
 
-    print(string.format('Paq [%d/%d] %s %s', c[result], total, msg, name))
+        print(string.format('Paq [%d/%d] %s %s', c[result], total, msg, name))
 
-    if c.ok + c.fail == num_pkgs then
-        c.ok, c.fail = 0, 0
-        cmd('packloadall! | helptags ALL')
+        if c.ok + c.fail == num_pkgs then
+            c.ok, c.fail = 0, 0
+            cmd('packloadall! | helptags ALL')
+        end
     end
 end
 
