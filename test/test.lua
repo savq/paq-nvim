@@ -19,9 +19,22 @@ end
 local Pq = reload_paq()
 local paq = Pq.paq
 
+--should fail to parse
+paq{'badbadnotgood', opt=true}
+
+-- test opt
 paq{'rust-lang/rust.vim', opt=true}
+
+-- test as
 paq{'JuliaEditorSupport/julia-vim', as='julia'}
+
+-- test url + as
+paq{url='https://github.com/lervag/wiki.vim', as='wiki'}
+
+-- test run function
 paq{'junegunn/fzf', run=function() vfn('fzf#install', {}) end }
+
+--test branch + run command
 paq{'autozimu/LanguageClient-neovim',
     branch = 'next',
     run = 'bash install.sh',
@@ -32,13 +45,15 @@ cmd('sleep 20') -- plenty of time for plugins to download
 
 assert(uv.fs_scandir(testpath .. 'opt/rust.vim'))
 assert(uv.fs_scandir(testpath .. 'start/julia'))
+assert(uv.fs_scandir(testpath .. 'start/wiki'))
 assert(uv.fs_scandir(testpath .. 'start/fzf'))
 assert(uv.fs_scandir(testpath .. 'start/LanguageClient-neovim'))
 
 local function test_branch()
     local branch = 'next'
     local stdout = uv.new_pipe(false)
-    local handle = uv.spawn( 'git', {
+    local handle = uv.spawn('git',
+        {
             cwd  = testpath .. 'start/LanguageClient-neovim',
             args = {'branch', '--show-current'}, -- FIXME: This might not work with some versions of git
             stdio = {nil, stout, nil},
