@@ -17,7 +17,6 @@ local ops = {
     clone            = {ok = 0, fail = 0, past = 'cloned'            },
     pull             = {ok = 0, fail = 0, past = 'pulled changes for'},
     remove           = {ok = 0, fail = 0, past = 'removed'           },
-    ['run hook for'] = {ok = 0, fail = 0, past = 'ran hook for'      },
 }
 
 local uv = vim.loop -- Alias for Neovim's event loop (libuv)
@@ -46,24 +45,30 @@ function _nvim.list_extend(dst, src, start, finish)
     return dst
 end
 
-local function output_result(op, name, ok)
-    local c, result, msg, total
+local function output_result(op, name, ok, ishook)
+    local result, msg
+    local count = ''
+    local failstr = 'Failed to '
+    local c = ops[op]
 
-    result = ok and 'ok' or 'fail'
-    c = ops[op]
-    if c ~= nil then
+    if ishook then --hooks aren't counted
+        msg = (ok and 'ran ' or failstr .. 'run ') .. string.format('`%s` for', op)
+    elseif not c then  --c is not a valid operation
+        msg = failstr .. op
+    else
+        result = ok and 'ok' or 'fail'
         c[result] = c[result] + 1
 
-        total = (op == 'run hook for') and 0 or num_pkgs
-        msg = ok and c.past or 'Failed to ' .. op
+        count = string.format('%d/%d', c[result], num_pkgs)
+        msg = ok and c.past or failstr .. op
 
-        print(string.format('Paq [%d/%d] %s %s', c[result], total, msg, name))
-
-        if c.ok + c.fail == num_pkgs then
+        if c.ok + c.fail == num_pkgs then  --no more packages to update
             c.ok, c.fail = 0, 0
             cmd('packloadall! | helptags ALL')
         end
     end
+
+    print(string.format('Paq [%s] %s %s', count, msg, name))
 end
 
 local function call_proc(process, pkg, args, cwd, ishook)
@@ -79,8 +84,7 @@ local function call_proc(process, pkg, args, cwd, ishook)
             uv.fs_close(log)
             stderr:close()
             handle:close()
-            op = ishook and 'run hook for' or args[1] or process
-            output_result(op, pkg.name, code == 0)
+            output_result(args[1] or process, pkg.name, code == 0, ishook)
             if not ishook then run_hook(pkg) end
         end)
     )
@@ -93,7 +97,7 @@ function run_hook(pkg) --(already defined as local)
     if t == 'function' then
         cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
-        output_result('run hook for', pkg.name, ok)
+        --output_result(t, pkg.name, ok, true)
 
     elseif t == 'string' then
         args = {}
