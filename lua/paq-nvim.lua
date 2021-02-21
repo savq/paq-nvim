@@ -1,6 +1,9 @@
 local uv = vim.loop -- Alias for Neovim's event loop (libuv)
 local run_hook      -- To handle mutual funtion recursion
 
+local cmd = vim.api.nvim_command       -- nvim 0.4 compat
+local vfn = vim.api.nvim_call_function -- ""
+
 -- Constants -------------------------------------------------------------------
 
 local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
@@ -13,6 +16,7 @@ local DATEFMT = '%F T %H:%M:%S%z'
 
 local packages = {} -- Table of 'name':{options} pairs
 local num_pkgs = 0
+local num_to_rm = 0
 local ops = {
     clone            = {ok = 0, fail = 0, past = 'cloned'            },
     pull             = {ok = 0, fail = 0, past = 'pulled changes for'},
@@ -22,8 +26,6 @@ local ops = {
 -- Neovim 0.4 compat -----------------------------------------------------------
 
 local _nvim = {} -- Helper functions to replace 0.5 features
-local cmd = vim.api.nvim_command
-local vfn = vim.api.nvim_call_function
 
 function _nvim.tbl_map(func, t)
     if vfn('has', {'nvim-0.5'}) == 1 then
@@ -55,6 +57,8 @@ local function output_result(op, name, ok, ishook)
     local failstr = 'Failed to '
     local c = ops[op]
 
+    -- TODO: write a match-like expression. This function got out of control
+
     if ishook then --hooks aren't counted
         msg = (ok and 'ran ' or failstr .. 'run ') .. string.format('`%s` for', op)
     elseif not c then  --c is not a valid operation
@@ -63,7 +67,9 @@ local function output_result(op, name, ok, ishook)
         result = ok and 'ok' or 'fail'
         c[result] = c[result] + 1
 
-        count = string.format('%d/%d', c[result], num_pkgs)
+        local total = (op == 'remove') and num_to_rm or num_pkgs
+
+        count = string.format('%d/%d', c[result], total)
         msg = ok and c.past or failstr .. op
 
         if c.ok + c.fail == num_pkgs then  --no more packages to update
@@ -115,7 +121,7 @@ end
 
 -- Main Operations ------------------------------------------------------------
 
-local function install_pkg(pkg)
+local function install(pkg)
     local args = {'clone', pkg.url}
     if pkg.exists then
         ops['clone']['ok'] = ops['clone']['ok'] + 1
@@ -127,33 +133,59 @@ local function install_pkg(pkg)
     call_proc('git', pkg, args)
 end
 
-local function update_pkg(pkg)
+local function update(pkg)
     if pkg.exists then
         call_proc('git', pkg, {'pull'}, pkg.dir)
     end
 end
 
-local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
+
+local function rmdir(dir)
     local name, t, child, ok
     local handle = uv.fs_scandir(dir)
     while handle do
         name, t = uv.fs_scandir_next(handle)
         if not name then break end
+
         child = dir .. '/' .. name
-        if is_pack_dir then --check which packages are listed
-            if packages[name] and packages[name].dir == child then --do nothing
-                ok = true
-            else --package isn't listed, remove it
-                ok = rmdir(child)
-                output_result('remove', name, ok)
-            end
-        else --it's an arbitrary directory or file
-            ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
-        end
+        ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
+
         if not ok then return end
     end
-    return is_pack_dir or uv.fs_rmdir(dir) --don't delete start/opt
+    return uv.fs_rmdir(dir)
 end
+
+-- Mark packages for deletion
+local function mark_pkgs(dir, opt)
+    local pkg, ok
+    local list = {}
+    local handle = uv.fs_scandir(PATH .. dir)
+    while handle do
+        name, t = uv.fs_scandir_next(handle)
+        if not name then break end
+        child = PATH .. dir .. name
+        pkg = packages[name]
+        if not (pkg and pkg.opt == opt and pkg.dir == child) then
+            table.insert(list, {name, child})
+        end
+    end
+    return list
+end
+
+local function clean_pkgs()
+    local rm_list = {}
+    _nvim.list_extend(rm_list, mark_pkgs('start/', false))
+    _nvim.list_extend(rm_list, mark_pkgs('opt/', true))
+    -- count packages
+
+    num_to_rm = #rm_list
+    for _, i in ipairs(rm_list) do
+        print(i[1])
+        ok = rmdir(i[2])
+        output_result('remove', i[1], ok)
+    end
+end
+
 
 -- User Config ----------------------------------------------------------------
 
@@ -187,9 +219,9 @@ end
 
 -- Exports --------------------------------------------------------------------
 return {
-    install   = function() _nvim.tbl_map(install_pkg, packages) end,
-    update    = function() _nvim.tbl_map(update_pkg, packages) end,
-    clean     = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
+    install   = function() _nvim.tbl_map(install, packages) end,
+    update    = function() _nvim.tbl_map(update, packages) end,
+    clean     = clean_pkgs,
     setup     = setup,
     paq       = paq,
     log_open  = function() cmd('sp ' .. LOGFILE) end,
