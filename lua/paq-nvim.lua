@@ -1,16 +1,16 @@
--- Neovim 0.4 compat
-local _nvim = {} -- Helper functions to replace 0.5 features
-local cmd = vim.api.nvim_command
-local vfn = vim.api.nvim_call_function
+local uv = vim.loop -- Alias for Neovim's event loop (libuv)
+local run_hook      -- To handle mutual funtion recursion
 
--- Constants
-local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
+-- Constants -------------------------------------------------------------------
+
+local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local DATEFMT = '%F T %H:%M:%S%z'
 
--- Globals
+-- Globals ---------------------------------------------------------------------
+
 local packages = {} -- Table of 'name':{options} pairs
 local num_pkgs = 0
 local ops = {
@@ -19,9 +19,11 @@ local ops = {
     remove           = {ok = 0, fail = 0, past = 'removed'           },
 }
 
-local uv = vim.loop -- Alias for Neovim's event loop (libuv)
-local run_hook      -- To handle mutual funtion recursion
+-- Neovim 0.4 compat -----------------------------------------------------------
 
+local _nvim = {} -- Helper functions to replace 0.5 features
+local cmd = vim.api.nvim_command
+local vfn = vim.api.nvim_call_function
 
 function _nvim.tbl_map(func, t)
     if vfn('has', {'nvim-0.5'}) == 1 then
@@ -44,6 +46,8 @@ function _nvim.list_extend(dst, src, start, finish)
     end
     return dst
 end
+
+-- IO --------------------------------------------------------------------------
 
 local function output_result(op, name, ok, ishook)
     local result, msg
@@ -109,6 +113,8 @@ function run_hook(pkg) --(already defined as local)
     end
 end
 
+-- Main Operations ------------------------------------------------------------
+
 local function install_pkg(pkg)
     local args = {'clone', pkg.url}
     if pkg.exists then
@@ -149,6 +155,8 @@ local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
     return is_pack_dir or uv.fs_rmdir(dir) --don't delete start/opt
 end
 
+-- User Config ----------------------------------------------------------------
+
 local function paq(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
@@ -177,6 +185,7 @@ local function setup(args)
     end
 end
 
+-- Exports --------------------------------------------------------------------
 return {
     install   = function() _nvim.tbl_map(install_pkg, packages) end,
     update    = function() _nvim.tbl_map(update_pkg, packages) end,
