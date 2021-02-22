@@ -1,6 +1,4 @@
-local uv = vim.loop -- Alias for Neovim's event loop (libuv)
-local run_hook      -- To handle mutual funtion recursion
-
+local uv  = vim.loop -- Alias for Neovim's event loop (libuv)
 local cmd = vim.api.nvim_command       -- nvim 0.4 compat
 local vfn = vim.api.nvim_call_function -- ""
 
@@ -38,7 +36,6 @@ function _nvim.tbl_map(func, t)
     return rettab
 end
 
--- Warning: This mutates dst!
 function _nvim.list_extend(dst, src, start, finish)
     if vfn('has', {'nvim-0.5'}) == 1 then
         return vim.list_extend(dst, src, start, finish)
@@ -50,6 +47,7 @@ function _nvim.list_extend(dst, src, start, finish)
 end
 
 -- IO --------------------------------------------------------------------------
+local run_hook
 
 local function output_result(op, name, ok, ishook)
     local result, msg
@@ -139,53 +137,48 @@ local function update(pkg)
     end
 end
 
+-- Clean and helper functions --------------------------------------------------
 
-local function rmdir(dir)
-    local name, t, child, ok
+local function iter_dir(fn, dir, args)
+    local child, name, t, ok
     local handle = uv.fs_scandir(dir)
     while handle do
         name, t = uv.fs_scandir_next(handle)
         if not name then break end
-
         child = dir .. '/' .. name
-        ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
-
+        ok = fn(child, name, t, args)
         if not ok then return end
     end
-    return uv.fs_rmdir(dir)
+    return true
 end
 
--- Mark packages for deletion
-local function mark_pkgs(dir, opt)
-    local pkg, ok
-    local list = {}
-    local handle = uv.fs_scandir(PATH .. dir)
-    while handle do
-        name, t = uv.fs_scandir_next(handle)
-        if not name then break end
-        child = PATH .. dir .. name
-        pkg = packages[name]
-        if not (pkg and pkg.opt == opt and pkg.dir == child) then
-            table.insert(list, {name, child})
-        end
+local function rm_dir(child, name, t)
+    if t == 'directory' then
+        return iter_dir(rm_dir, child) and uv.fs_rmdir(child)
+    else
+        return uv.fs_unlink(child)
     end
-    return list
+end
+
+local function mark_dir(dir, name, _, args)
+    local pkg = packages[name]
+    if not (pkg and pkg.opt == arg[2] and pkg.dir == dir) then
+        table.insert(args[1], {name, dir})
+    end
+    return true
 end
 
 local function clean_pkgs()
     local rm_list = {}
-    _nvim.list_extend(rm_list, mark_pkgs('start/', false))
-    _nvim.list_extend(rm_list, mark_pkgs('opt/', true))
-    -- count packages
-
-    num_to_rm = #rm_list
+    iter_dir(mark_dir, PATH .. 'start', {rm_list, false})
+    iter_dir(mark_dir, PATH .. 'opt', {rm_list, true})
+    num_to_rm = #rm_list -- update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
         print(i[1])
-        ok = rmdir(i[2])
+        ok = iter_dir(rm_dir, i[2])
         output_result('remove', i[1], ok)
     end
 end
-
 
 -- User Config ----------------------------------------------------------------
 
