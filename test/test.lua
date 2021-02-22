@@ -1,6 +1,6 @@
+local uv  = vim.loop
 local cmd = vim.api.nvim_command
 local vfn = vim.api.nvim_call_function
-local uv  = vim.loop
 
 cmd('packadd paq-nvim')
 
@@ -19,23 +19,22 @@ end
 local Pq = reload_paq()
 local paq = Pq.paq
 
---should fail to parse
-paq{'badbadnotgood', opt=true}
 
--- test opt
-paq{'rust-lang/rust.vim', opt=true}
+paq{'badbadnotgood', opt=true}                  -- should fail to parse
 
--- test as
-paq{'JuliaEditorSupport/julia-vim', as='julia'}
+paq{'rust-lang/rust.vim', opt=true}             -- test opt
 
--- test url + as
-paq{url='https://github.com/lervag/wiki.vim', as='wiki'}
+paq{'JuliaEditorSupport/julia-vim', as='julia'} -- test as
 
--- test run function
-paq{'junegunn/fzf', run=function() vfn('fzf#install', {}) end }
+paq{as='wiki',                                  -- test url + as
+    url='https://github.com/lervag/wiki.vim',
+    }
 
---test branch + run command
-paq{'autozimu/LanguageClient-neovim',
+paq {'junegunn/fzf',                            -- test run function
+    run=function() vfn('fzf#install', {}) end,
+    } 
+
+paq {'autozimu/LanguageClient-neovim',          -- test branch + run command
     branch = 'next',
     run = 'bash install.sh',
     }
