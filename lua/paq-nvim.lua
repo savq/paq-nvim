@@ -15,11 +15,13 @@ local DATEFMT = '%F T %H:%M:%S%z'
 local packages = {} -- Table of 'name':{options} pairs
 local num_pkgs = 0
 local num_to_rm = 0
+
 local ops = {
-    clone            = {ok = 0, fail = 0, past = 'cloned'            },
-    pull             = {ok = 0, fail = 0, past = 'pulled changes for'},
-    remove           = {ok = 0, fail = 0, past = 'removed'           },
+    clone  = {ok=0, fail=0, past = 'cloned'            },
+    pull   = {ok=0, fail=0, past = 'pulled changes for'},
+    remove = {ok=0, fail=0, past = 'removed'           },
 }
+
 
 -- Neovim 0.4 compat -----------------------------------------------------------
 
@@ -55,8 +57,6 @@ local function output_result(op, name, ok, ishook)
     local failstr = 'Failed to '
     local c = ops[op]
 
-    -- TODO: write a match-like expression. This function got out of control
-
     if ishook then --hooks aren't counted
         msg = (ok and 'ran ' or failstr .. 'run ') .. string.format('`%s` for', op)
     elseif not c then  --c is not a valid operation
@@ -66,7 +66,6 @@ local function output_result(op, name, ok, ishook)
         c[result] = c[result] + 1
 
         local total = (op == 'remove') and num_to_rm or num_pkgs
-
         count = string.format('%d/%d', c[result], total)
         msg = ok and c.past or failstr .. op
 
@@ -105,7 +104,7 @@ function run_hook(pkg) --(already defined as local)
     if t == 'function' then
         cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
-        --output_result(t, pkg.name, ok, true)
+        output_result(t, pkg.name, ok, true)
 
     elseif t == 'string' then
         args = {}
@@ -162,8 +161,8 @@ end
 
 local function mark_dir(dir, name, _, args)
     local pkg = packages[name]
-    if not (pkg and pkg.opt == arg[2] and pkg.dir == dir) then
-        table.insert(args[1], {name, dir})
+    if not (pkg and pkg.opt == args[2] and pkg.dir == dir) then
+        table.insert(args[1], {name=name, dir=dir})
     end
     return true
 end
@@ -172,11 +171,11 @@ local function clean_pkgs()
     local rm_list = {}
     iter_dir(mark_dir, PATH .. 'start', {rm_list, false})
     iter_dir(mark_dir, PATH .. 'opt', {rm_list, true})
-    num_to_rm = #rm_list -- update count of plugins to be deleted
+
+    num_to_rm = #rm_list    -- update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
-        print(i[1])
-        ok = iter_dir(rm_dir, i[2])
-        output_result('remove', i[1], ok)
+        ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
+        output_result('remove', i.name, ok)
     end
 end
 
