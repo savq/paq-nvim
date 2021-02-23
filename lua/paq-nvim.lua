@@ -1,27 +1,28 @@
--- Neovim 0.4 compat
-local _nvim = {} -- Helper functions to replace 0.5 features
-local cmd = vim.api.nvim_command
-local vfn = vim.api.nvim_call_function
+local uv  = vim.loop -- Alias for Neovim's event loop (libuv)
+local cmd = vim.api.nvim_command       -- nvim 0.4 compat
+local vfn = vim.api.nvim_call_function -- ""
+local run_hook -- to handle mutual recursion
 
--- Constants
-local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
+----- Constants
+local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local DATEFMT = '%F T %H:%M:%S%z'
 
--- Globals
+----- Globals
 local packages = {} -- Table of 'name':{options} pairs
-local num_pkgs = 0
+local num_pkgs  = 0
+local num_to_rm = 0
+
 local ops = {
-    clone            = {ok = 0, fail = 0, past = 'cloned'            },
-    pull             = {ok = 0, fail = 0, past = 'pulled changes for'},
-    remove           = {ok = 0, fail = 0, past = 'removed'           },
+    clone  = {ok=0, fail=0, past = 'cloned'            },
+    pull   = {ok=0, fail=0, past = 'pulled changes for'},
+    remove = {ok=0, fail=0, past = 'removed'           },
 }
 
-local uv = vim.loop -- Alias for Neovim's event loop (libuv)
-local run_hook      -- To handle mutual funtion recursion
-
+----- Neovim 0.4 compat
+local _nvim = {} -- Helper functions to replace 0.5 features
 
 function _nvim.tbl_map(func, t)
     if vfn('has', {'nvim-0.5'}) == 1 then
@@ -34,7 +35,6 @@ function _nvim.tbl_map(func, t)
     return rettab
 end
 
--- Warning: This mutates dst!
 function _nvim.list_extend(dst, src, start, finish)
     if vfn('has', {'nvim-0.5'}) == 1 then
         return vim.list_extend(dst, src, start, finish)
@@ -46,28 +46,25 @@ function _nvim.list_extend(dst, src, start, finish)
 end
 
 local function output_result(op, name, ok, ishook)
-    local result, msg
+    local result, total, msg
     local count = ''
     local failstr = 'Failed to '
     local c = ops[op]
-
-    if ishook then --hooks aren't counted
-        msg = (ok and 'ran ' or failstr .. 'run ') .. string.format('`%s` for', op)
-    elseif not c then  --c is not a valid operation
-        msg = failstr .. op
-    else
+    if c then
         result = ok and 'ok' or 'fail'
         c[result] = c[result] + 1
-
-        count = string.format('%d/%d', c[result], num_pkgs)
+        total = (op == 'remove') and num_to_rm or num_pkgs -- FIXME
+        count = string.format('%d/%d', c[result], total)
         msg = ok and c.past or failstr .. op
-
         if c.ok + c.fail == num_pkgs then  --no more packages to update
             c.ok, c.fail = 0, 0
             cmd('packloadall! | helptags ALL')
         end
+    elseif ishook then --hooks aren't counted
+        msg = (ok and 'ran' or failstr .. 'run') .. string.format(' `%s` for', op)
+    else
+        msg = failstr .. op
     end
-
     print(string.format('Paq [%s] %s %s', count, msg, name))
 end
 
@@ -97,7 +94,7 @@ function run_hook(pkg) --(already defined as local)
     if t == 'function' then
         cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
-        --output_result(t, pkg.name, ok, true)
+        output_result(t, pkg.name, ok, true)
 
     elseif t == 'string' then
         args = {}
@@ -109,7 +106,7 @@ function run_hook(pkg) --(already defined as local)
     end
 end
 
-local function install_pkg(pkg)
+local function install(pkg)
     local args = {'clone', pkg.url}
     if pkg.exists then
         ops['clone']['ok'] = ops['clone']['ok'] + 1
@@ -121,32 +118,50 @@ local function install_pkg(pkg)
     call_proc('git', pkg, args)
 end
 
-local function update_pkg(pkg)
+local function update(pkg)
     if pkg.exists then
         call_proc('git', pkg, {'pull'}, pkg.dir)
     end
 end
 
-local function rmdir(dir, is_pack_dir) --pack_dir = start | opt
-    local name, t, child, ok
+local function iter_dir(fn, dir, args)
+    local child, name, t, ok
     local handle = uv.fs_scandir(dir)
     while handle do
         name, t = uv.fs_scandir_next(handle)
         if not name then break end
         child = dir .. '/' .. name
-        if is_pack_dir then --check which packages are listed
-            if packages[name] and packages[name].dir == child then --do nothing
-                ok = true
-            else --package isn't listed, remove it
-                ok = rmdir(child)
-                output_result('remove', name, ok)
-            end
-        else --it's an arbitrary directory or file
-            ok = (t == 'directory') and rmdir(child) or uv.fs_unlink(child)
-        end
+        ok = fn(child, name, t, args)
         if not ok then return end
     end
-    return is_pack_dir or uv.fs_rmdir(dir) --don't delete start/opt
+    return true
+end
+
+local function rm_dir(child, name, t)
+    if t == 'directory' then
+        return iter_dir(rm_dir, child) and uv.fs_rmdir(child)
+    else
+        return uv.fs_unlink(child)
+    end
+end
+
+local function mark_dir(dir, name, _, args)
+    local pkg = packages[name]
+    if not (pkg and pkg.opt == args[2] and pkg.dir == dir) then
+        table.insert(args[1], {name=name, dir=dir})
+    end
+    return true
+end
+
+local function clean_pkgs()
+    local rm_list = {}
+    iter_dir(mark_dir, PATH .. 'start', {rm_list, false})
+    iter_dir(mark_dir, PATH .. 'opt', {rm_list, true})
+    num_to_rm = #rm_list    -- update count of plugins to be deleted
+    for _, i in ipairs(rm_list) do
+        ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
+        output_result('remove', i.name, ok)
+    end
 end
 
 local function paq(args)
@@ -178,9 +193,9 @@ local function setup(args)
 end
 
 return {
-    install   = function() _nvim.tbl_map(install_pkg, packages) end,
-    update    = function() _nvim.tbl_map(update_pkg, packages) end,
-    clean     = function() rmdir(PATH..'start', 1); rmdir(PATH..'opt', 1) end,
+    install   = function() _nvim.tbl_map(install, packages) end,
+    update    = function() _nvim.tbl_map(update, packages) end,
+    clean     = clean_pkgs,
     setup     = setup,
     paq       = paq,
     log_open  = function() cmd('sp ' .. LOGFILE) end,
