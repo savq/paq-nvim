@@ -1,19 +1,18 @@
 local uv  = vim.loop -- Alias for Neovim's event loop (libuv)
 local cmd = vim.api.nvim_command       -- nvim 0.4 compat
 local vfn = vim.api.nvim_call_function -- ""
+local run_hook -- to handle mutual recursion
 
--- Constants -------------------------------------------------------------------
-
+----- Constants
 local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 local DATEFMT = '%F T %H:%M:%S%z'
 
--- Globals ---------------------------------------------------------------------
-
+----- Globals
 local packages = {} -- Table of 'name':{options} pairs
-local num_pkgs = 0
+local num_pkgs  = 0
 local num_to_rm = 0
 
 local ops = {
@@ -22,9 +21,7 @@ local ops = {
     remove = {ok=0, fail=0, past = 'removed'           },
 }
 
-
--- Neovim 0.4 compat -----------------------------------------------------------
-
+----- Neovim 0.4 compat
 local _nvim = {} -- Helper functions to replace 0.5 features
 
 function _nvim.tbl_map(func, t)
@@ -48,33 +45,26 @@ function _nvim.list_extend(dst, src, start, finish)
     return dst
 end
 
--- IO --------------------------------------------------------------------------
-local run_hook
-
 local function output_result(op, name, ok, ishook)
-    local result, msg
+    local result, total, msg
     local count = ''
     local failstr = 'Failed to '
     local c = ops[op]
-
-    if ishook then --hooks aren't counted
-        msg = (ok and 'ran ' or failstr .. 'run ') .. string.format('`%s` for', op)
-    elseif not c then  --c is not a valid operation
-        msg = failstr .. op
-    else
+    if c then
         result = ok and 'ok' or 'fail'
         c[result] = c[result] + 1
-
-        local total = (op == 'remove') and num_to_rm or num_pkgs
+        total = (op == 'remove') and num_to_rm or num_pkgs -- FIXME
         count = string.format('%d/%d', c[result], total)
         msg = ok and c.past or failstr .. op
-
         if c.ok + c.fail == num_pkgs then  --no more packages to update
             c.ok, c.fail = 0, 0
             cmd('packloadall! | helptags ALL')
         end
+    elseif ishook then --hooks aren't counted
+        msg = (ok and 'ran' or failstr .. 'run') .. string.format(' `%s` for', op)
+    else
+        msg = failstr .. op
     end
-
     print(string.format('Paq [%s] %s %s', count, msg, name))
 end
 
@@ -116,8 +106,6 @@ function run_hook(pkg) --(already defined as local)
     end
 end
 
--- Main Operations ------------------------------------------------------------
-
 local function install(pkg)
     local args = {'clone', pkg.url}
     if pkg.exists then
@@ -135,8 +123,6 @@ local function update(pkg)
         call_proc('git', pkg, {'pull'}, pkg.dir)
     end
 end
-
--- Clean and helper functions --------------------------------------------------
 
 local function iter_dir(fn, dir, args)
     local child, name, t, ok
@@ -171,15 +157,12 @@ local function clean_pkgs()
     local rm_list = {}
     iter_dir(mark_dir, PATH .. 'start', {rm_list, false})
     iter_dir(mark_dir, PATH .. 'opt', {rm_list, true})
-
     num_to_rm = #rm_list    -- update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
         output_result('remove', i.name, ok)
     end
 end
-
--- User Config ----------------------------------------------------------------
 
 local function paq(args)
     local name, dir
@@ -209,7 +192,6 @@ local function setup(args)
     end
 end
 
--- Exports --------------------------------------------------------------------
 return {
     install   = function() _nvim.tbl_map(install, packages) end,
     update    = function() _nvim.tbl_map(update, packages) end,
