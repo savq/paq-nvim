@@ -4,21 +4,20 @@ local vfn = vim.api.nvim_call_function
 
 cmd('packadd paq-nvim')
 
-local testpath = vfn('stdpath', {'data'}) .. '/site/pack/test/'
+local TESTPATH = vfn('stdpath', {'data'}) .. '/site/pack/test/'
 
 local function reload_paq()
     local Pq
     package.loaded['paq-nvim'] = nil
     Pq = require('paq-nvim')
     Pq.setup {
-        path = testpath,
+        path = TESTPATH,
     }
     return Pq
 end
 
 local Pq = reload_paq()
 local paq = Pq.paq
-
 
 paq{'badbadnotgood', opt=true}                  -- should fail to parse
 
@@ -42,18 +41,17 @@ paq {'autozimu/LanguageClient-neovim',          -- test branch + run command
 Pq.install()
 cmd('sleep 20') -- plenty of time for plugins to download
 
-assert(uv.fs_scandir(testpath .. 'opt/rust.vim'))
-assert(uv.fs_scandir(testpath .. 'start/julia'))
-assert(uv.fs_scandir(testpath .. 'start/wiki'))
-assert(uv.fs_scandir(testpath .. 'start/fzf'))
-assert(uv.fs_scandir(testpath .. 'start/LanguageClient-neovim'))
+assert(uv.fs_scandir(TESTPATH .. 'opt/rust.vim'))
+assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+assert(uv.fs_scandir(TESTPATH .. 'start/wiki'))
+assert(uv.fs_scandir(TESTPATH .. 'start/fzf'))
+assert(uv.fs_scandir(TESTPATH .. 'start/LanguageClient-neovim'))
 
-local function test_branch()
-    local branch = 'next'
+local function test_branch(path, branch)
     local stdout = uv.new_pipe(false)
     local handle = uv.spawn('git',
         {
-            cwd  = testpath .. 'start/LanguageClient-neovim',
+            cwd  = TESTPATH .. path,
             args = {'branch', '--show-current'}, -- FIXME: This might not work with some versions of git
             stdio = {nil, stout, nil},
         },
@@ -70,7 +68,7 @@ local function test_branch()
     end)
 end
 
-test_branch()
+test_branch('start/LanguageClient-neovim', 'next')
 
 cmd('sleep 20')
 Pq = reload_paq()
