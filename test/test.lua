@@ -72,6 +72,14 @@ test_branch('start/LanguageClient-neovim', 'next')
 
 cmd('sleep 20')
 Pq = reload_paq()
+
+---- Check clean() doesn't delete everything
+paq{'JuliaEditorSupport/julia-vim', as='julia'}
+Pq.clean()
+assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+
+cmd('sleep 20')
+Pq = reload_paq()
 Pq.clean()
 
 print('Paq-test: FINISHED')
