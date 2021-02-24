@@ -16,13 +16,33 @@ local function reload_paq()
     return Pq
 end
 
+local function test_branch(path, branch)
+    local stdout = uv.new_pipe(false)
+    local handle = uv.spawn('git',
+        {
+            cwd  = TESTPATH .. path,
+            args = {'branch', '--show-current'}, -- FIXME: This might not work with some versions of git
+            stdio = {nil, stout, nil},
+        },
+        function(code)
+            assert(code == 0, "Paq-test: failed to get git branch")
+            stdout:read_stop()
+            stdout:close()
+        end)
+    stdout:read_start(function(err, data)
+        assert(not err, err)
+        if data then
+            assert(data == branch, string.format("Paq-test: %s does not equal %s", data, branch))
+        end
+    end)
+end
+
+
 local Pq = reload_paq()
 local paq = Pq.paq
 
 paq{'badbadnotgood', opt=true}                  -- should fail to parse
-
 paq{'rust-lang/rust.vim', opt=true}             -- test opt
-
 paq{'JuliaEditorSupport/julia-vim', as='julia'} -- test as
 
 paq{as='wiki',                                  -- test url + as
@@ -47,36 +67,18 @@ assert(uv.fs_scandir(TESTPATH .. 'start/wiki'))
 assert(uv.fs_scandir(TESTPATH .. 'start/fzf'))
 assert(uv.fs_scandir(TESTPATH .. 'start/LanguageClient-neovim'))
 
-local function test_branch(path, branch)
-    local stdout = uv.new_pipe(false)
-    local handle = uv.spawn('git',
-        {
-            cwd  = TESTPATH .. path,
-            args = {'branch', '--show-current'}, -- FIXME: This might not work with some versions of git
-            stdio = {nil, stout, nil},
-        },
-        function(code)
-            assert(code == 0, "Paq-test: failed to get git branch")
-            stdout:read_stop()
-            stdout:close()
-        end)
-    stdout:read_start(function(err, data)
-        assert(not err, err)
-        if data then
-            assert(data == branch, string.format("Paq-test: %s does not equal %s", data, branch))
-        end
-    end)
-end
+
 
 test_branch('start/LanguageClient-neovim', 'next')
-
 cmd('sleep 20')
-Pq = reload_paq()
 
 ---- Check clean() doesn't delete everything
-paq{'JuliaEditorSupport/julia-vim', as='julia'}
+Pq = reload_paq()
+Pq.paq{'JuliaEditorSupport/julia-vim', as='julia'}
 Pq.clean()
 assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+
+
 
 cmd('sleep 20')
 Pq = reload_paq()
