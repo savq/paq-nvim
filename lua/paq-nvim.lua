@@ -145,18 +145,18 @@ local function rm_dir(child, name, t)
     end
 end
 
-local function mark_dir(dir, name, _, args)
+local function mark_dir(dir, name, _, list)
     local pkg = packages[name]
-    if not (pkg and pkg.opt == args[2] and pkg.dir == dir) then
-        table.insert(args[1], {name=name, dir=dir})
+    if not (pkg and pkg.dir == dir) then
+        table.insert(list, {name=name, dir=dir})
     end
     return true
 end
 
 local function clean_pkgs()
     local rm_list = {}
-    iter_dir(mark_dir, PATH .. 'start', {rm_list, false})
-    iter_dir(mark_dir, PATH .. 'opt', {rm_list, true})
+    iter_dir(mark_dir, PATH .. 'start', rm_list)
+    iter_dir(mark_dir, PATH .. 'opt', rm_list)
     num_to_rm = #rm_list    -- update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
