@@ -56,7 +56,7 @@ local function output_result(op, name, ok, ishook)
         total = (op == 'remove') and num_to_rm or num_pkgs -- FIXME
         count = string.format('%d/%d', c[result], total)
         msg = ok and c.past or failstr .. op
-        if c.ok + c.fail == num_pkgs then  --no more packages to update
+        if c.ok + c.fail == total then  --no more packages to update
             c.ok, c.fail = 0, 0
             cmd('packloadall! | helptags ALL')
         end
@@ -168,12 +168,14 @@ local function paq(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
 
-    num_pkgs = num_pkgs + 1
-
     name = args.as or args[1]:match(REPO_RE)
     if not name then return output_result('parse', args[1]) end
 
     dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
+
+    if not packages[name] then
+        num_pkgs = num_pkgs + 1
+    end
 
     packages[name] = {
         name   = name,
