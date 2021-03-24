@@ -1,9 +1,10 @@
-*paq-nvim.txt*  Package manager for Nvim version 0.4.4 Last change: 2021-02-17
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-03-23
 *paq-nvim*
 *paq*
 
 Author: Sergio Alejandro Vargas    <savargasqu+git@unal.edu.co>
 
+License: MIT
 
 ==============================================================================
 CONTENTS                                                        *paq-contents*
@@ -28,8 +29,8 @@ GitHub repositories.
 Paq is written in Lua. It uses the |loop| API to install and update
 packages asynchronously, and it stores packages in |packpath| directories.
 
-Paq is for Nvim users who use Lua as their configuration language.
-It was written to be a wrapper around existing Nvim features, and to have
+Paq is for Neovim users who use Lua as their configuration language.
+It was written to be a wrapper around existing Neovim features, and to have
 a simple and familiar interface for declaring packages.
 
 NOTE: Requirements and installation instructions can be found in the README.
@@ -40,7 +41,7 @@ FEATURES                                                        *paq-features*
 
 - Easy to use and configure
 
-- Fast installation and updating using Nvim's |loop|
+- Fast installation and updating using Neovim's |loop|
 
 - Small implementation, around 150 LOC
 
@@ -50,13 +51,12 @@ USAGE                                                              *paq-usage*
 
 To get started with Paq:
 
- 1. Import the `paq-nvim` module to your Lua configuration, and bind the `paq`
-    function:
+ 1. Import the `paq-nvim` module, and bind the `paq` function:
  >
-    vim.cmd['packadd paq-nvim']
-    local Paq = require'paq-nvim' -- Module
-    local paq = Paq.paq           -- Function
-    paq 'savq/paq-nvim'           -- Paq manages itself
+    vim.cmd('packadd paq-nvim')
+    local Paq = require'paq-nvim'    -- Module
+    local paq = Paq.paq              -- Function
+    paq{'savq/paq-nvim', opt=true}   -- Paq manages itself
 <
 
  2. List the packages you want to install using the `paq` function with the
@@ -74,18 +74,18 @@ That's it!
 FUNCTIONS AND COMMANDS                                          *paq-commands*
                                                                *paq-functions*
 
-The Paq module exports four functions. Three of these have a command alias,
-making it easier to call the functions on demand. Assuming the module is
-imported as `Paq`, we have:
+The Paq module exports multiple functions. Most of these functions have a
+command alias to make them easier to call on demand. Assuming the module is
+imported as `Paq`, the functions are:
 
 |Paq.paq|                                                            *Paq.paq*
 
   Add a package to Paq's (internal) list. It can take a table or a string.
   When a table is passed, the first value has to be a string with the name of
   the repository, like: `'<GitHub-username>/<repository-name>'`.
-  The other key-value pairs in the table have to be named explicitly,
-  see |paq-options|. If only a string is passed, it works as if it was the
-  first value of the table, and all other options will be set to their default
+  The other key-value pairs in the table have to be named explicitly, see
+  |paq-options|. If only a string is passed, it works as if it was the first
+  value of the table, and all other options will be set to their default
   values.
 
   Note: Lua can elide parentheses when passing a table or a string to a
@@ -94,46 +94,46 @@ imported as `Paq`, we have:
 
 |Paq.install|                                                    *Paq.install*
                                                                *:PaqInstall*
-  Install all packages listed on your configuration, if a package is already
+  Installs all packages listed on your configuration, if a package is already
   installed, the function ignores it.
 
 
 |Paq.update|                                                      *Paq.update*
                                                                 *:PaqUpdate*
-  Update the installed packages listed on your configuration. If a package
+  Updates the installed packages listed on your configuration. If a package
   hasn't been installed with |PaqInstall|, the function ignores it.
 
 
 |Paq.clean|                                                        *Paq.clean*
                                                                  *:PaqClean*
-  Remove packages that are on |paq-directory|, but aren't listed in your
+  Removes packages found on |paq-directory| that aren't listed in your
   configuration.
 
 
 |Paq.log_open|                                                  *Paq.log_open*
                                                                *:PaqLogOpen*
-  Open the |paq-log| file in a split window.
+  Opens the |paq-log| file in a split window.
 
 
 |Paq.log_clean|                                                *Paq.log_clean*
                                                               *:PaqLogClean*
-  Delete the |paq-log| file.
+  Deletes the |paq-log| file.
 
 
 |Paq.setup|                                                        *Paq.setup*
 
-  Function to configure specific global behavior. It takes as single input a
-  table, which can have a key `path` to overwrite the default value for
-  |paq-directory|. This functionality exists mainly to allow testing without
-  altering a user's configuration.
+  Configures specific global behavior. It takes as single input a table,
+  which can have a key `path` to overwrite the default value for |paq-directory|.
+  This functionality exists mainly to allow testing without altering a user's
+  configuration.
 
 
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
 
-When adding a package using the |Paq.paq| function, you can pass a table with
-some named options. These options don't need to be in a particular order,
-as long as the name of the repository is the first thing on the table.
+You can pass a table with named options to the |Paq.paq| function.
+These options don't need to be in any particular order, as long as the
+name of the repository is the first element on the table.
 
 The options are the following:
 
@@ -141,15 +141,15 @@ The options are the following:
   String indicating the alias or name of the plugin, which determines the name
   of the directory where Paq will download the plugin.
 
-  If left unspecified, Paq will infer it from the plugin string. For
-  `'<GitHub-username>/<repo-name>'` that is `<repo-name>`.
+  If left unspecified, Paq will infer it from the plugin string.
+  For `'<GitHub-username>/<repo-name>'` that is `<repo-name>`.
 
   Default value: `nil`
 
 
 `branch`
-  String with the name of a branch of the git repository. If set,
-  Paq will only download that specific branch.
+  String with the name of a branch of the git repository. Paq will fetch
+  and pull changes from this branch.
 
   Default value: `nil`
 
@@ -165,7 +165,7 @@ The options are the following:
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
 
-  Also note that you can wrap a VimL function like so:
+  Note that in nvim 0.5, you can wrap a VimL function like so:
 >
     paq{ '<name-of-package>', run=vim.fn['<name-of-viml-function>'] }
 <
@@ -187,16 +187,16 @@ The options are the following:
 
 `url`
   String indicating the URL of the git repository. This allows Paq to
-  download packages from any website; however, for convenience, if not set,
+  download packages from any website. For convenience, if `url` is unset,
   Paq will try to find the repository on GitHub.com.
 
-  Default value: `'https://github.com/'..'<GitHub-username>/<repo-name>'`
+  Default value: `'https://github.com/' .. '<GitHub-username>/<repo-name>'`
 
 
 Example~
 
 The language client `coc.nvim` recommends installing the release branch of
-their repository, if we wanted to also install it as an optional package,
+their repository. If we also wanted to install it as an optional package,
 we could call `paq` like:
 >
     paq {'neoclide/coc.nvim', opt=true, branch='release'}
@@ -205,7 +205,7 @@ we could call `paq` like:
 ==============================================================================
 PAQ DIRECTORY                                                  *paq-directory*
 
-Paq installs packages using Nvim's |packages| convention, which itself
+Paq installs packages using Neovim's |packages| convention, which itself
 follows the XDG Base Directory specification. You can find the directory
 where Paq installs packages by running the command:
 >
