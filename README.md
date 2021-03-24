@@ -6,7 +6,7 @@ Paq is a Neovim package manager written in Lua.
 ## Features
 
 - __Simple__: Easy to use and configure
-- __Fast__:   Installs and updates packages concurrently using Nvim's event-loop
+- __Fast__:   Installs and updates packages concurrently using Neovim's event-loop
 - __Small__:  Around 150 LOC
 
 
@@ -84,14 +84,13 @@ inside a Lua chunk (or in a separate Lua module).
 For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
 
-NOTICE:
+**NOTICE:**
 The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` instead.
 
 
 ## Related projects
 
-Vim and Neovim have no shortage of package managers.
 You can find a [comparison](https://github.com/savq/paq-nvim/wiki/Comparisons)
 with [Packer.nvim](https://github.com/wbthomason/packer.nvim),
 and a [migration guide](https://github.com/savq/paq-nvim/wiki/Migration)
-from Vim8 plugin managers in the [wiki](https://github.com/savq/paq-nvim/wiki).
+from Vim8 plugin managers (vim-plug and Minpac) in the [wiki](https://github.com/savq/paq-nvim/wiki).
