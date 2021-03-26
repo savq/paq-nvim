@@ -10,13 +10,16 @@ License: MIT
 CONTENTS                                                        *paq-contents*
 
   Introduction                                            |paq-introduction|
-    Features                                              |paq-features|
+    Features
   Usage                                                   |paq-usage|
   Functions and Commands                                  |paq-commands|
   Package options                                         |paq-options|
   Commands                                                |paq-commands|
   Paq directory                                           |paq-directory|
   Paq log                                                 |paq-log|
+  Miscellaneous                                           |paq-misc|
+    Using local packages
+    Lazy loading
 
 
 ==============================================================================
@@ -26,18 +29,22 @@ Paq is a Neovim package manager. It can install, update and remove packages
 from any valid git repository, and it includes a familiar shorthand for
 GitHub repositories.
 
-Paq is written in Lua. It uses the |loop| API to install and update
-packages asynchronously, and it stores packages in |packpath| directories.
+Paq is written in Lua. It uses the |loop| API to install and update packages
+asynchronously, and it stores packages in |packpath| directories.
 
-Paq is for Neovim users who use Lua as their configuration language.
-It was written to be a wrapper around existing Neovim features, and to have
-a simple and familiar interface for declaring packages.
+Paq is for Neovim users who use Lua as their configuration language. It was
+written to be a wrapper around existing Neovim features, and to have a simple
+and familiar interface for declaring packages.
+
+Paq doesn't modify the |runtimepath|. Nowadays Neovim provides more structured
+ways to handle package loading, that can be used without any any special
+scripting.
 
 NOTE: Requirements and installation instructions can be found in the README.
 
 
 ------------------------------------------------------------------------------
-FEATURES                                                        *paq-features*
+FEATURES~
 
 - Easy to use and configure
 
@@ -222,6 +229,60 @@ Paq writes the `stderr` output of external processes to a log file.
 The log file can be found at:
 >
     :echo stdpath('cache') .. '/paq.log'
+<
+
+==============================================================================
+PAQ MISCELLANEOUS                                                   *paq-misc*
+
+These are some features related to using packages, which probably don't
+require Paq. Either because there's already a way to do it in Neovim, or
+because they're out of scope for the project.
+
+
+------------------------------------------------------------------------------
+Using local packages~
+
+You don't need Paq to use local packages. Neovim already provides ways to
+load a local plugin, namely:
+
+- Add it to a directory in |packpath| (different from |paq-directory|)
+- Modify the |runtimepath| directly
+
+The second option just requires you to concatenate the path to the plugin to
+your `runtimepath`. In lua this looks like:
+
+>
+    vim.o.runtimepath = vim.o.runtimepath .. ",path/to/your/plugin"
+<
+
+
+------------------------------------------------------------------------------
+Lazy loading~
+
+Paq doesn't provide a mechanism to lazy load packages. Before considering
+if a package needs to be lazy loaded:
+
+1. Be sure to profile your startup time with the |--startuptime| flag.
+2. For VimL plugins, check if the package uses the |autoload| feature.
+3. For Lua plugins, check if the package is properly modularized in the `lua/`
+   directory.
+
+If the package doesn't do 2. or 3. consider opening an issue in that package's
+issue tracker rather than Paq's. It'll help users of other package managers
+too.
+
+If you've checked all that and still think that the package _has_ to be lazy
+loaded, you can declare the package as optional, and call |packadd| when
+needed.
+
+You use an |autocommand| to do the lazy loading, but at the time of writing
+there isn't a way to declare an autocommand using only Lua.
+
+
+Example:
+>
+    paq {'author/heavy-plugin', opt=true}
+    vim.cmd [[autocmd Filetype ruby packadd! heavy-plugin]]
 <
 
 ==============================================================================
