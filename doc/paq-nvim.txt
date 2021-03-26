@@ -249,11 +249,11 @@ load a local plugin, namely:
 - Modify the |runtimepath| directly
 
 The second option just requires you to concatenate the path to the plugin to
-your `runtimepath`. In lua this looks like:
-
+your `runtimepath`. In lua, this looks like:
 >
-    vim.o.runtimepath = vim.o.runtimepath .. ",path/to/your/plugin"
+    vim.o.runtimepath = vim.o.runtimepath .. ",~/path/to/your/plugin"
 <
+Use an absolute path, and don't forget the comma!
 
 
 ------------------------------------------------------------------------------
@@ -275,9 +275,8 @@ If you've checked all that and still think that the package _has_ to be lazy
 loaded, you can declare the package as optional, and call |packadd| when
 needed.
 
-You use an |autocommand| to do the lazy loading, but at the time of writing
-there isn't a way to declare an autocommand using only Lua.
-
+You can use an |autocommand| to do the lazy loading, but at the time of
+writing there isn't a way to declare an autocommand using only Lua.
 
 Example:
 >
