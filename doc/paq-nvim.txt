@@ -15,7 +15,7 @@ CONTENTS                                                        *paq-contents*
   Functions and Commands                                  |paq-commands|
   Package options                                         |paq-options|
   Commands                                                |paq-commands|
-  Paq directory                                           |paq-directory|
+  Paq directory                                           |paq-dir|
   Paq log                                                 |paq-log|
   Miscellaneous                                           |paq-misc|
     Using local packages
@@ -113,7 +113,7 @@ imported as `Paq`, the functions are:
 
 |Paq.clean|                                                        *Paq.clean*
                                                                  *:PaqClean*
-  Removes packages found on |paq-directory| that aren't listed in your
+  Removes packages found on |paq-dir| that aren't listed in your
   configuration.
 
 
@@ -130,9 +130,9 @@ imported as `Paq`, the functions are:
 |Paq.setup|                                                        *Paq.setup*
 
   Configures specific global behavior. It takes as single input a table,
-  which can have a key `path` to overwrite the default value for |paq-directory|.
-  This functionality exists mainly to allow testing without altering a user's
-  configuration.
+  which can have a key `path` to overwrite the default value for |paq-dir|.
+  This functionality exists mainly to allow testing without altering a
+  user's configuration.
 
 
 ==============================================================================
@@ -210,7 +210,7 @@ we could call `paq` like:
 <
 
 ==============================================================================
-PAQ DIRECTORY                                                  *paq-directory*
+PAQ DIRECTORY                                                        *paq-dir*
 
 Paq installs packages using Neovim's |packages| convention, which itself
 follows the XDG Base Directory specification. You can find the directory
@@ -245,7 +245,7 @@ Using local packages~
 You don't need Paq to use local packages. Neovim already provides ways to
 load a local plugin, namely:
 
-- Add it to a directory in |packpath| (different from |paq-directory|)
+- Add it to a directory in |packpath| (different from |paq-dir|)
 - Modify the |runtimepath| directly
 
 The second option just requires you to concatenate the path to the plugin to
