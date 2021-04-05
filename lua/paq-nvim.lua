@@ -105,12 +105,12 @@ local function install(pkg)
     call_proc('git', pkg, args, nil, nil, cb)
 end
 
-local function git_hash(dir)
+local function get_git_hash(dir)
     local function first_line(path)
-        local file = io.open(path)
+        local file = uv.fs_open(path, 'r', 0x1A4)
         if file then
-            local line = file:read()
-            file:close()
+            local line = uv.fs_read(file, 41, -1) --FIXME: this might fail
+            uv.fs_close(file)
             return line
         end
     end
@@ -122,9 +122,9 @@ end
 
 local function update(pkg)
     if pkg.exists then
-        local hash = git_hash(pkg.dir)
+        local hash = get_git_hash(pkg.dir)
         local cb = function(code)
-            if code == 0 and git_hash(pkg.dir) ~= hash then
+            if code == 0 and get_git_hash(pkg.dir) ~= hash then
                 changes[pkg.name] = 'updated'
             end
         end
