@@ -1,7 +1,10 @@
 local uv  = vim.loop -- Alias for Neovim's event loop (libuv)
-local cmd = vim.api.nvim_command       -- nvim 0.4 compat
-local vfn = vim.api.nvim_call_function -- ""
 local run_hook -- to handle mutual recursion
+
+-- nvim 0.4 compatibility
+local cmd = vim.api.nvim_command
+local vfn = vim.api.nvim_call_function
+local compat = require('paq-nvim.compat')
 
 ----- Constants
 local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
@@ -21,54 +24,6 @@ local ops = {
     pull   = {ok=0, fail=0, past = 'pulled changes for'},
     remove = {ok=0, fail=0, past = 'removed'           },
 }
-
------ Neovim 0.4 compat
-local _nvim = {} -- Helper functions to replace 0.5 features
-
-function _nvim.tbl_map(func, t)
-    if vfn('has', {'nvim-0.5'}) == 1 then
-        return vim.tbl_map(func, t)
-    end
-    local rettab = {}
-    for k, v in pairs(t) do
-        rettab[k] = func(v)
-    end
-    return rettab
-end
-
-function _nvim.tbl_keys(t)
-    if vfn('has', {'nvim-0.5'}) == 1 then
-        return vim.tbl_keys(t)
-    end
-    local rettab = {}
-    for k, _ in pairs(t) do
-        table.insert(rettab, k)
-    end
-    return rettab
-end
-
-function _nvim.tbl_filter(func, t)
-    if vfn('has', {'nvim-0.5'}) == 1 then
-        return vim.tbl_filter(func, t)
-    end
-    local rettab = {}
-    for _, v in pairs(t) do
-        if func(v) then
-            table.insert(rettab, v)
-        end
-    end
-    return rettab
-end
-
-function _nvim.list_extend(dst, src, start, finish)
-    if vfn('has', {'nvim-0.5'}) == 1 then
-        return vim.list_extend(dst, src, start, finish)
-    end
-    for i = start or 1, finish or #src do
-        table.insert(dst, src[i])
-    end
-    return dst
-end
 
 local function output_result(op, name, ok, ishook)
     local result, total, msg
@@ -138,9 +93,9 @@ local function install(pkg)
         ops['clone']['ok'] = ops['clone']['ok'] + 1
         return
     elseif pkg.branch then
-        _nvim.list_extend(args, {'-b',  pkg.branch})
+        compat.list_extend(args, {'-b',  pkg.branch})
     end
-    _nvim.list_extend(args, {pkg.dir})
+    compat.list_extend(args, {pkg.dir})
     local cb = function(code)
         if code == 0 then
             pkg.exists = true
@@ -251,8 +206,8 @@ end
 local function list()
     local is_installed = function(name) return packages[name].exists      end
     local was_removed  = function(name) return changes[name] == 'removed' end
-    local installed = _nvim.tbl_filter(is_installed, _nvim.tbl_keys(packages))
-    local removed   = _nvim.tbl_filter(was_removed,  _nvim.tbl_keys(changes))
+    local installed = compat.tbl_filter(is_installed, compat.tbl_keys(packages))
+    local removed   = compat.tbl_filter(was_removed,  compat.tbl_keys(changes))
 
     table.sort(installed)
     table.sort(removed)
@@ -271,7 +226,7 @@ local function list()
 
     local function list_pkgs(header, pkgs)
         if #pkgs ~= 0 then print(header) end
-        for _, v in ipairs(_nvim.tbl_map(prefix, pkgs)) do print(v) end
+        for _, v in ipairs(compat.tbl_map(prefix, pkgs)) do print(v) end
     end
 
     list_pkgs("Installed packages:", installed)
@@ -279,8 +234,8 @@ local function list()
 end
 
 return {
-    install   = function() _nvim.tbl_map(install, packages) end,
-    update    = function() _nvim.tbl_map(update, packages) end,
+    install   = function() compat.tbl_map(install, packages) end,
+    update    = function() compat.tbl_map(update, packages) end,
     clean     = clean_pkgs,
     list      = list,
     setup     = setup,
