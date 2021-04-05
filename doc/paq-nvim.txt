@@ -117,6 +117,13 @@ imported as `Paq`, the functions are:
   configuration.
 
 
+|Paq.list|                                                          *Paq.list*
+                                                                  *:PaqList*
+  Lists installed packages as well as packages that were recently removed.
+  Recently installed or updated packages are marked with a `+` and `*`,
+  respectively.
+
+
 |Paq.log_open|                                                  *Paq.log_open*
                                                                *:PaqLogOpen*
   Opens the |paq-log| file in a split window.
