@@ -12,6 +12,7 @@ local DATEFMT = '%F T %H:%M:%S%z'
 
 ----- Globals
 local packages = {} -- Table of 'name':{options} pairs
+local changes  = {} -- Table of 'name':'change' pairs
 local num_pkgs  = 0
 local num_to_rm = 0
 
@@ -31,6 +32,30 @@ function _nvim.tbl_map(func, t)
     local rettab = {}
     for k, v in pairs(t) do
         rettab[k] = func(v)
+    end
+    return rettab
+end
+
+function _nvim.tbl_keys(t)
+    if vfn('has', {'nvim-0.5'}) == 1 then
+        return vim.tbl_keys(t)
+    end
+    local rettab = {}
+    for k, _ in pairs(t) do
+        table.insert(rettab, k)
+    end
+    return rettab
+end
+
+function _nvim.tbl_filter(func, t)
+    if vfn('has', {'nvim-0.5'}) == 1 then
+        return vim.tbl_filter(func, t)
+    end
+    local rettab = {}
+    for _, v in pairs(t) do
+        if func(v) then
+            table.insert(rettab, v)
+        end
     end
     return rettab
 end
@@ -68,7 +93,7 @@ local function output_result(op, name, ok, ishook)
     print(string.format('Paq [%s] %s %s', count, msg, name))
 end
 
-local function call_proc(process, pkg, args, cwd, ishook)
+local function call_proc(process, pkg, args, cwd, ishook, cb)
     local log, stderr, handle, op
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4) -- FIXME: Write in terms of uv.constants
     stderr = uv.new_pipe(false)
@@ -82,6 +107,7 @@ local function call_proc(process, pkg, args, cwd, ishook)
             stderr:close()
             handle:close()
             output_result(args[1] or process, pkg.name, code == 0, ishook)
+            if type(cb) == 'function' then cb(code) end
             if not ishook then run_hook(pkg) end
         end)
     )
@@ -115,12 +141,39 @@ local function install(pkg)
         _nvim.list_extend(args, {'-b',  pkg.branch})
     end
     _nvim.list_extend(args, {pkg.dir})
-    call_proc('git', pkg, args)
+    local cb = function(code)
+        if code == 0 then
+            pkg.exists = true
+            changes[pkg.name] = 'installed'
+        end
+    end
+    call_proc('git', pkg, args, nil, nil, cb)
+end
+
+local function git_hash(dir)
+    local function first_line(path)
+        local file = io.open(path)
+        if file then
+            local line = file:read()
+            file:close()
+            return line
+        end
+    end
+    local head_ref = first_line(dir .. "/.git/HEAD")
+    if head_ref then
+        return first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
+    end
 end
 
 local function update(pkg)
     if pkg.exists then
-        call_proc('git', pkg, {'pull'}, pkg.dir)
+        local hash = git_hash(pkg.dir)
+        local cb = function(code)
+            if code == 0 and git_hash(pkg.dir) ~= hash then
+                changes[pkg.name] = 'updated'
+            end
+        end
+        call_proc('git', pkg, {'pull'}, pkg.dir, nil, cb)
     end
 end
 
@@ -161,6 +214,7 @@ local function clean_pkgs()
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
         output_result('remove', i.name, ok)
+        if ok then changes[i.name] = 'removed' end
     end
 end
 
@@ -194,10 +248,41 @@ local function setup(args)
     end
 end
 
+local function list()
+    local is_installed = function(name) return packages[name].exists      end
+    local was_removed  = function(name) return changes[name] == 'removed' end
+    local installed = _nvim.tbl_filter(is_installed, _nvim.tbl_keys(packages))
+    local removed   = _nvim.tbl_filter(was_removed,  _nvim.tbl_keys(changes))
+
+    table.sort(installed)
+    table.sort(removed)
+
+    local indent = "   "
+    local symb_tbl = {
+        installed = "+",
+        updated   = "*",
+        removed   = " ",
+        default   = " ",
+    }
+
+    local function prefix(name)
+        return indent .. symb_tbl[changes[name] or 'default'] .. name
+    end
+
+    local function list_pkgs(header, pkgs)
+        if #pkgs ~= 0 then print(header) end
+        for _, v in ipairs(_nvim.tbl_map(prefix, pkgs)) do print(v) end
+    end
+
+    list_pkgs("Installed packages:", installed)
+    list_pkgs("Recently removed:", removed)
+end
+
 return {
     install   = function() _nvim.tbl_map(install, packages) end,
     update    = function() _nvim.tbl_map(update, packages) end,
     clean     = clean_pkgs,
+    list      = list,
     setup     = setup,
     paq       = paq,
     log_open  = function() cmd('sp ' .. LOGFILE) end,
