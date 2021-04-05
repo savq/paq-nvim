@@ -5,6 +5,7 @@ endif
 command! PaqInstall  lua require('paq-nvim').install()
 command! PaqUpdate   lua require('paq-nvim').update()
 command! PaqClean    lua require('paq-nvim').clean()
+command! PaqList     lua require('paq-nvim').list()
 command! PaqLogOpen  lua require('paq-nvim').log_open()
 command! PaqLogClean lua require('paq-nvim').log_clean()
 
