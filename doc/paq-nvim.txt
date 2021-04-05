@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-03-26
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-04-05
 *paq-nvim*
 *paq*
 
