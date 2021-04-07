@@ -158,7 +158,7 @@ local function mark_dir(dir, name, _, list)
     return true
 end
 
-local function clean_pkgs()
+local function clean()
     local ok
     local rm_list = {}
     iter_dir(mark_dir, paq_dir .. "start", rm_list)
@@ -169,6 +169,27 @@ local function clean_pkgs()
         output_result("remove", i.name, ok)
         if ok then changes[i.name] = 'removed' end
     end
+end
+
+local function list()
+    local installed = compat.tbl_filter(function(name) return packages[name].exists end, compat.tbl_keys(packages))
+    local removed = compat.tbl_filter(function(name) return changes[name] == 'removed' end,  compat.tbl_keys(changes))
+
+    table.sort(installed)
+    table.sort(removed)
+
+    local symb_tbl = {installed="+", updated="*", removed=" "}
+    local prefix = function(name)
+        return "   " .. (symb_tbl[changes[name]] or " ") .. name
+    end
+
+    local list_pkgs = function(header, pkgs)
+        if #pkgs ~= 0 then print(header) end
+        for _, v in ipairs(compat.tbl_map(prefix, pkgs)) do print(v) end
+    end
+
+    list_pkgs("Installed packages:", installed)
+    list_pkgs("Recently removed:", removed)
 end
 
 local function paq(args)
@@ -201,39 +222,10 @@ local function setup(args)
     end
 end
 
-local function list()
-    local is_installed = function(name) return packages[name].exists end
-    local was_removed  = function(name) return changes[name] == 'removed' end
-    local installed = compat.tbl_filter(is_installed, compat.tbl_keys(packages))
-    local removed   = compat.tbl_filter(was_removed,  compat.tbl_keys(changes))
-
-    table.sort(installed)
-    table.sort(removed)
-
-    local symb_tbl = {
-        installed = "+",
-        updated   = "*",
-        removed   = " ",
-        default   = " ",
-    }
-
-    local function prefix(name)
-        return "   " .. (symb_tbl[changes[name]] or " ") .. name
-    end
-
-    local function list_pkgs(header, pkgs)
-        if #pkgs ~= 0 then print(header) end
-        for _, v in ipairs(compat.tbl_map(prefix, pkgs)) do print(v) end
-    end
-
-    list_pkgs("Installed packages:", installed)
-    list_pkgs("Recently removed:", removed)
-end
-
 return {
     install   = function() compat.tbl_map(install, packages) end,
     update    = function() compat.tbl_map(update, packages) end,
-    clean     = clean_pkgs,
+    clean     = clean,
     list      = list,
     setup     = setup,
     paq       = paq,
