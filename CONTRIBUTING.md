@@ -32,5 +32,8 @@ Paq is developed in a separate branch. PRs should fork from, and merge to `dev`.
 The PR should mention the related issue, and explain how the changes were made.
 Each commit message should also describe the specifics of each change.
 
-Changes should only affect code related to the issue, avoid cosmetic changes.
-Documentation should also be added in a separate commit.
+Other notes:
+
+- Changes should only affect code related to the issue, avoid cosmetic changes.
+- Use the [luacheck](https://github.com/mpeterv/luacheck) linter to avoid common Lua mistakes.
+- Paq doesn't use a code formatter. _Monkey see, monkey do._

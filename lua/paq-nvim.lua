@@ -1,5 +1,5 @@
-local uv  = vim.loop -- Alias for Neovim's event loop (libuv)
-local run_hook -- to handle mutual recursion
+local uv  = vim.loop --alias for Neovim's event loop (libuv)
+local run_hook --to handle mutual recursion
 
 -- nvim 0.4 compatibility
 local cmd = vim.api.nvim_command
@@ -11,7 +11,6 @@ local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is n
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 local GITHUB  = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
-local DATEFMT = '%F T %H:%M:%S%z'
 
 ----- Globals
 local packages = {} -- Table of 'name':{options} pairs
@@ -49,7 +48,7 @@ local function output_result(op, name, ok, ishook)
 end
 
 local function call_proc(process, pkg, args, cwd, ishook, cb)
-    local log, stderr, handle, op
+    local log, stderr, handle
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4) -- FIXME: Write in terms of uv.constants
     stderr = uv.new_pipe(false)
     stderr:open(log)
@@ -74,7 +73,7 @@ function run_hook(pkg) --(already defined as local)
 
     if t == 'function' then
         cmd('packadd ' .. pkg.name)
-        local ok = pcall(pkg.run)
+        ok = pcall(pkg.run)
         output_result(t, pkg.name, ok, true)
 
     elseif t == 'string' then
@@ -145,7 +144,7 @@ local function iter_dir(fn, dir, args)
     return true
 end
 
-local function rm_dir(child, name, t)
+local function rm_dir(child, _, t)
     if t == 'directory' then
         return iter_dir(rm_dir, child) and uv.fs_rmdir(child)
     else
@@ -162,6 +161,7 @@ local function mark_dir(dir, name, _, list)
 end
 
 local function clean_pkgs()
+    local ok
     local rm_list = {}
     iter_dir(mark_dir, PATH .. 'start', rm_list)
     iter_dir(mark_dir, PATH .. 'opt', rm_list)
