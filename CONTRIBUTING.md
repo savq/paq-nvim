@@ -32,5 +32,13 @@ Paq is developed in a separate branch. PRs should fork from, and merge to `dev`.
 The PR should mention the related issue, and explain how the changes were made.
 Each commit message should also describe the specifics of each change.
 
-Changes should only affect code related to the issue, avoid cosmetic changes.
-Documentation should also be added in a separate commit.
+Other notes:
+
+- Changes should only affect code related to the issue, avoid cosmetic changes.
+- Use the [luacheck](https://github.com/mpeterv/luacheck) linter to avoid common Lua mistakes.
+- Paq doesn't use a code formatter. _Monkey see, monkey do._
+  - Use double quotes for strings that will be used in I/O, including:
+    paths, command line arguments, patterns, etc.
+  - Use single quotes for strings pretending to be symbols,
+    like the output of `type` or for table indexes.
+
