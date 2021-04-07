@@ -1,5 +1,4 @@
 local uv  = vim.loop --alias for Neovim's event loop (libuv)
-local run_hook --to handle mutual recursion
 
 -- nvim 0.4 compatibility
 local cmd = vim.api.nvim_command
@@ -7,21 +6,22 @@ local vfn = vim.api.nvim_call_function
 local compat = require('paq-nvim.compat')
 
 ----- Constants
-local PATH    = vfn('stdpath', {'data'}) .. '/site/pack/paqs/' --TODO: PATH is now configurable, rename!
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
-local GITHUB  = 'https://github.com/'
+local GITHUB = 'https://github.com/'
 local REPO_RE = '^[%w-]+/([%w-_.]+)$'
 
 ----- Globals
-local packages = {} -- Table of 'name':{options} pairs
-local changes  = {} -- Table of 'name':'change' pairs
-local num_pkgs  = 0
+local run_hook; --to handle mutual recursion
+local paq_dir = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
+local packages = {} --table of 'name':{options} pairs
+local changes = {} --table of 'name':'change' pairs
+local num_pkgs = 0
 local num_to_rm = 0
 
 local ops = {
-    clone  = {ok=0, fail=0, past = 'cloned'            },
-    pull   = {ok=0, fail=0, past = 'pulled changes for'},
-    remove = {ok=0, fail=0, past = 'removed'           },
+    clone  = {ok=0, fail=0, past='cloned'},
+    pull   = {ok=0, fail=0, past='pulled changes for'},
+    remove = {ok=0, fail=0, past='removed'},
 }
 
 local function output_result(op, name, ok, ishook)
@@ -163,8 +163,8 @@ end
 local function clean_pkgs()
     local ok
     local rm_list = {}
-    iter_dir(mark_dir, PATH .. 'start', rm_list)
-    iter_dir(mark_dir, PATH .. 'opt', rm_list)
+    iter_dir(mark_dir, paq_dir .. 'start', rm_list)
+    iter_dir(mark_dir, paq_dir .. 'opt', rm_list)
     num_to_rm = #rm_list    -- update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
@@ -180,7 +180,7 @@ local function paq(args)
     name = args.as or args[1]:match(REPO_RE)
     if not name then return output_result('parse', args[1]) end
 
-    dir = PATH .. (args.opt and 'opt/' or 'start/') .. name
+    dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
 
     if not packages[name] then
         num_pkgs = num_pkgs + 1
@@ -199,12 +199,12 @@ end
 local function setup(args)
     assert(type(args) == 'table')
     if type(args.path) == 'string' then
-        PATH = args.path --FIXME: should probably rename PATH
+        paq_dir = args.path --FIXME: should probably rename paq_dir
     end
 end
 
 local function list()
-    local is_installed = function(name) return packages[name].exists      end
+    local is_installed = function(name) return packages[name].exists end
     local was_removed  = function(name) return changes[name] == 'removed' end
     local installed = compat.tbl_filter(is_installed, compat.tbl_keys(packages))
     local removed   = compat.tbl_filter(was_removed,  compat.tbl_keys(changes))
