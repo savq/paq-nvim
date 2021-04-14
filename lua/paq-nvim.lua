@@ -9,10 +9,9 @@ local compat = require("paq-nvim.compat")
 local LOGFILE = vfn('stdpath', {"cache"}) .. "/paq.log"
 
 ----- Globals
-local run_hook; --to handle mutual recursion
 local paq_dir   = vfn('stdpath', {"data"}) .. "/site/pack/paqs/"
 local packages  = {} --table of 'name':{options} pairs
-local changes   = {} --table of 'name':'change' pairs
+local changes   = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
 local num_pkgs  = 0
 local num_to_rm = 0
 
@@ -22,15 +21,14 @@ local ops = {
     remove = {ok=0, fail=0, past="removed"},
 }
 
-local function output_result(op, name, ok, ishook)
-    local result, total, msg
+local function output_result(op, name, total, ok, ishook)
+    local result, msg
     local count = ""
     local failstr = "Failed to "
     local c = ops[op]
     if c then
         result = ok and 'ok' or 'fail'
         c[result] = c[result] + 1
-        total = (op == "remove") and num_to_rm or num_pkgs --FIXME
         count = string.format("%d/%d", c[result], total)
         msg = ok and c.past or failstr .. op
         if c.ok + c.fail == total then  --no more packages to update
@@ -45,7 +43,7 @@ local function output_result(op, name, ok, ishook)
     print(string.format("Paq [%s] %s %s", count, msg, name))
 end
 
-local function call_proc(process, pkg, args, cwd, ishook, cb)
+local function call_proc(process, pkg, args, cwd, cb)
     local log, stderr, handle
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4)
     stderr = uv.new_pipe(false)
@@ -53,26 +51,24 @@ local function call_proc(process, pkg, args, cwd, ishook, cb)
     handle = uv.spawn(
         process,
         {args=args, cwd=cwd, stdio = {nil, nil, stderr}},
-        vim.schedule_wrap( function(code)
+        vim.schedule_wrap(function(code)
             uv.fs_write(log, "\n", -1) --space out error messages
             uv.fs_close(log)
             stderr:close()
             handle:close()
-            output_result(args[1] or process, pkg.name, code == 0, ishook)
-            if type(cb) == 'function' then cb(code) end
-            if not ishook then run_hook(pkg) end
+            if cb then cb(code) end
         end)
     )
 end
 
-function run_hook(pkg) --(already defined as local)
+local function run_hook(pkg)
     local t, process, args, ok
     t = type(pkg.run)
 
     if t == 'function' then
         cmd("packadd " .. pkg.name)
         ok = pcall(pkg.run)
-        output_result(t, pkg.name, ok, true)
+        output_result(t, pkg.name, 0, ok, true)
 
     elseif t == 'string' then
         args = {}
@@ -80,27 +76,34 @@ function run_hook(pkg) --(already defined as local)
             table.insert(args, word)
         end
         process = table.remove(args, 1)
-        call_proc(process, pkg, args, pkg.dir, true)
+        local post_hook = function(code)
+            output_result(process, pkg.name, 0, code == 0, true)
+        end
+        call_proc(process, pkg, args, pkg.dir, post_hook)
     end
 end
 
 local function install(pkg)
-    local args = {"clone", pkg.url}
+    local op = 'clone'
+    local args = {op, pkg.url}
     if pkg.exists then
-        ops['clone']['ok'] = ops['clone']['ok'] + 1
+        ops[op]['ok'] = ops[op]['ok'] + 1
         return
     elseif pkg.branch then
         compat.list_extend(args, {"-b",  pkg.branch})
     end
     compat.list_extend(args, {pkg.dir})
-    local cb = function(code)
+    local post_install = function(code)
         if code == 0 then
             pkg.exists = true
             changes[pkg.name] = 'installed'
+            if pkg.run then run_hook(pkg) end
         end
+        output_result(op, pkg.name, num_pkgs, code)
     end
-    call_proc("git", pkg, args, nil, nil, cb)
+    call_proc("git", pkg, args, nil, post_install)
 end
+
 
 local function get_git_hash(dir)
     local function first_line(path)
@@ -118,15 +121,17 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if pkg.exists then
-        local hash = get_git_hash(pkg.dir)
-        local cb = function(code)
-            if code == 0 and get_git_hash(pkg.dir) ~= hash then
-                changes[pkg.name] = 'updated'
-            end
+    if not pkg.exists then return end
+    local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
+    local post_update = function(code)
+        if code == 0 and get_git_hash(pkg.dir) ~= hash then
+            print("Updated " .. pkg.name)
+            changes[pkg.name] = 'updated'
+            if pkg.run then run_hook(pkg) end
         end
-        call_proc("git", pkg, {"pull"}, pkg.dir, nil, cb)
+        output_result("pull", pkg.name, num_pkgs, code)
     end
+    call_proc("git", pkg, {"pull"}, pkg.dir, post_update)
 end
 
 local function iter_dir(fn, dir, args)
@@ -163,10 +168,9 @@ local function clean()
     local rm_list = {}
     iter_dir(mark_dir, paq_dir .. "start", rm_list)
     iter_dir(mark_dir, paq_dir .. "opt", rm_list)
-    num_to_rm = #rm_list    --update count of plugins to be deleted
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
-        output_result("remove", i.name, ok)
+        output_result("remove", i.name, #rm_list, ok)
         if ok then changes[i.name] = 'removed' end
     end
 end
@@ -197,7 +201,7 @@ local function paq(args)
     if type(args) == 'string' then args = {args} end
 
     name = args.as or args[1]:match("^[%w-]+/([%w-_.]+)$")
-    if not name then return output_result("parse", args[1]) end
+    if not name then return output_result("parse", args[1], 0) end
 
     dir = paq_dir .. (args.opt and "opt/" or "start/") .. name
 
