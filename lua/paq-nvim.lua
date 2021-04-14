@@ -9,38 +9,58 @@ local compat = require("paq-nvim.compat")
 local LOGFILE = vfn('stdpath', {"cache"}) .. "/paq.log"
 
 ----- Globals
-local paq_dir   = vfn('stdpath', {"data"}) .. "/site/pack/paqs/"
-local packages  = {} --table of 'name':{options} pairs
-local changes   = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
-local num_pkgs  = 0
-local num_to_rm = 0
+local paq_dir  = vfn('stdpath', {"data"}) .. "/site/pack/paqs/"
+local packages = {} --table of 'name':{options} pairs
+local changes  = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
+local num_pkgs = 0
 
 local ops = {
-    clone  = {ok=0, fail=0, past="cloned"},
-    pull   = {ok=0, fail=0, past="pulled changes for"},
-    remove = {ok=0, fail=0, past="removed"},
+    clone  = {ok=0, fail=0, nop=0},
+    pull   = {ok=0, fail=0, nop=0},
+    remove = {ok=0, fail=0, nop=0},
 }
 
-local function output_result(op, name, total, ok, ishook)
-    local result, msg
-    local count = ""
-    local failstr = "Failed to "
+local msgs = {
+    clone = {
+        ok = "installed %s",
+        fail = "failed to install %s",
+    },
+    pull = {
+        ok = "updated %s",
+        fail = "failed to update %s",
+        nop = "%s is up to date",
+    },
+    remove = {
+        ok = "removed %s",
+        fail = "failed to remove %s",
+    },
+    hook = {
+        ok = "ran hook for %s (%s)",
+        fail = "failed to run hook for %s (%s)",
+    },
+}
+
+local function get_count(op, result, total)
     local c = ops[op]
     if c then
-        result = ok and 'ok' or 'fail'
-        c[result] = c[result] + 1
-        count = string.format("%d/%d", c[result], total)
-        msg = ok and c.past or failstr .. op
-        if c.ok + c.fail == total then  --no more packages to update
-            c.ok, c.fail = 0, 0
+        if c.ok + c.fail + c.nop == total then
+            c.ok, c.fail, c.nop = 0, 0, 0
             cmd("packloadall! | helptags ALL")
         end
-    elseif ishook then --hooks aren"t counted
-        msg = (ok and "ran" or failstr .. "run") .. string.format(" `%s` for", op)
-    else
-        msg = failstr .. op
+        c[result] = c[result] + 1
+        return c[result]
     end
-    print(string.format("Paq [%s] %s %s", count, msg, name))
+end
+
+local function output_msg(op, name, total, ok, hook)
+    local msg;
+    local result = (ok and 'ok') or (ok == false and 'fail' or 'nop')
+    local cur = get_count(op, result, total)
+    local count = total ~= -1 and string.format("%d/%d", cur, total) or ""
+    if msgs[op] and cur then
+        msg = msgs[op][result]
+        print(string.format("Paq [%s] " .. msg, count, name, hook))
+    end
 end
 
 local function call_proc(process, pkg, args, cwd, cb)
@@ -68,7 +88,7 @@ local function run_hook(pkg)
     if t == 'function' then
         cmd("packadd " .. pkg.name)
         ok = pcall(pkg.run)
-        output_result(t, pkg.name, 0, ok, true)
+        output_msg("hook", pkg.name, -1, ok, "function")
 
     elseif t == 'string' then
         args = {}
@@ -77,18 +97,16 @@ local function run_hook(pkg)
         end
         process = table.remove(args, 1)
         local post_hook = function(code)
-            output_result(process, pkg.name, 0, code == 0, true)
+            output_msg("hook", pkg.name, -1, code == 0, args[1])
         end
         call_proc(process, pkg, args, pkg.dir, post_hook)
     end
 end
 
 local function install(pkg)
-    local op = 'clone'
-    local args = {op, pkg.url}
+    local args = {"clone", pkg.url}
     if pkg.exists then
-        ops[op]['ok'] = ops[op]['ok'] + 1
-        return
+        return get_count('clone', 'nop', num_pkgs)
     elseif pkg.branch then
         compat.list_extend(args, {"-b",  pkg.branch})
     end
@@ -99,7 +117,7 @@ local function install(pkg)
             changes[pkg.name] = 'installed'
             if pkg.run then run_hook(pkg) end
         end
-        output_result(op, pkg.name, num_pkgs, code)
+        output_msg('clone', pkg.name, num_pkgs, code == 0)
     end
     call_proc("git", pkg, args, nil, post_install)
 end
@@ -125,11 +143,12 @@ local function update(pkg)
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
     local post_update = function(code)
         if code == 0 and get_git_hash(pkg.dir) ~= hash then
-            print("Updated " .. pkg.name)
             changes[pkg.name] = 'updated'
             if pkg.run then run_hook(pkg) end
+            output_msg('pull', pkg.name, num_pkgs, code == 0)
+        else
+            output_msg('pull', pkg.name, num_pkgs)
         end
-        output_result("pull", pkg.name, num_pkgs, code)
     end
     call_proc("git", pkg, {"pull"}, pkg.dir, post_update)
 end
@@ -170,7 +189,7 @@ local function clean()
     iter_dir(mark_dir, paq_dir .. "opt", rm_list)
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
-        output_result("remove", i.name, #rm_list, ok)
+        output_msg("remove", i.name, #rm_list, ok)
         if ok then changes[i.name] = 'removed' end
     end
 end
@@ -201,7 +220,7 @@ local function paq(args)
     if type(args) == 'string' then args = {args} end
 
     name = args.as or args[1]:match("^[%w-]+/([%w-_.]+)$")
-    if not name then return output_result("parse", args[1], 0) end
+    if not name then return print("Failed to parse " .. args[1]) end
 
     dir = paq_dir .. (args.opt and "opt/" or "start/") .. name
 
