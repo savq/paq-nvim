@@ -15,20 +15,20 @@ local changes  = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
 local num_pkgs = 0
 
 local ops = {
-    clone  = {ok=0, fail=0, nop=0},
-    pull   = {ok=0, fail=0, nop=0},
-    remove = {ok=0, fail=0, nop=0},
+    install = {ok=0, fail=0, nop=0},
+    update  = {ok=0, fail=0, nop=0},
+    remove  = {ok=0, fail=0, nop=0},
 }
 
 local msgs = {
-    clone = {
+    install = {
         ok = "installed %s",
         fail = "failed to install %s",
     },
-    pull = {
+    update = {
         ok = "updated %s",
         fail = "failed to update %s",
-        nop = "%s is up to date",
+        nop = "(up-to-date) %s",
     },
     remove = {
         ok = "removed %s",
@@ -53,12 +53,11 @@ local function get_count(op, result, total)
 end
 
 local function output_msg(op, name, total, ok, hook)
-    local msg;
     local result = (ok and 'ok') or (ok == false and 'fail' or 'nop')
     local cur = get_count(op, result, total)
     local count = total ~= -1 and string.format("%d/%d", cur, total) or ""
     if msgs[op] and cur then
-        msg = msgs[op][result]
+        local msg = msgs[op][result]
         print(string.format("Paq [%s] " .. msg, count, name, hook))
     end
 end
@@ -103,7 +102,7 @@ end
 local function install(pkg)
     local args = {"clone", pkg.url}
     if pkg.exists then
-        return get_count('clone', 'nop', num_pkgs)
+        return get_count('install', 'nop', num_pkgs)
     elseif pkg.branch then
         compat.list_extend(args, {"-b",  pkg.branch})
     end
@@ -114,7 +113,7 @@ local function install(pkg)
             changes[pkg.name] = 'installed'
             if pkg.run then run_hook(pkg) end
         end
-        output_msg('clone', pkg.name, num_pkgs, ok)
+        output_msg('install', pkg.name, num_pkgs, ok)
     end
     call_proc("git", args, nil, post_install)
 end
@@ -142,9 +141,9 @@ local function update(pkg)
         if ok and get_git_hash(pkg.dir) ~= hash then
             changes[pkg.name] = 'updated'
             if pkg.run then run_hook(pkg) end
-            output_msg('pull', pkg.name, num_pkgs, ok)
+            output_msg('update', pkg.name, num_pkgs, ok)
         else
-            output_msg('pull', pkg.name, num_pkgs)
+            output_msg('update', pkg.name, num_pkgs)
         end
     end
     call_proc("git", {"pull"}, pkg.dir, post_update)
