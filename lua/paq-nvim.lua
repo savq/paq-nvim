@@ -82,20 +82,17 @@ local function call_proc(process, args, cwd, cb)
 end
 
 local function run_hook(pkg)
-    local t, process, args, ok
-    t = type(pkg.run)
-
+    local t = type(pkg.run)
     if t == 'function' then
         cmd("packadd " .. pkg.name)
-        ok = pcall(pkg.run)
+        local ok = pcall(pkg.run)
         output_msg("hook", pkg.name, -1, ok, "function")
-
     elseif t == 'string' then
-        args = {}
+        local args = {}
         for word in pkg.run:gmatch("%S+") do
             table.insert(args, word)
         end
-        process = table.remove(args, 1)
+        local process = table.remove(args, 1)
         local post_hook = function(ok)
             output_msg("hook", pkg.name, -1, ok, args[1])
         end
