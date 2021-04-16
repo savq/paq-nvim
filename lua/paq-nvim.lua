@@ -63,7 +63,7 @@ local function output_msg(op, name, total, ok, hook)
     end
 end
 
-local function call_proc(process, pkg, args, cwd, cb)
+local function call_proc(process, args, cwd, cb)
     local log, stderr, handle
     log = uv.fs_open(LOGFILE, 'a+', 0x1A4)
     stderr = uv.new_pipe(false)
@@ -76,7 +76,7 @@ local function call_proc(process, pkg, args, cwd, cb)
             uv.fs_close(log)
             stderr:close()
             handle:close()
-            if cb then cb(code) end
+            cb(code == 0)
         end)
     )
 end
@@ -96,10 +96,10 @@ local function run_hook(pkg)
             table.insert(args, word)
         end
         process = table.remove(args, 1)
-        local post_hook = function(code)
-            output_msg("hook", pkg.name, -1, code == 0, args[1])
+        local post_hook = function(ok)
+            output_msg("hook", pkg.name, -1, ok, args[1])
         end
-        call_proc(process, pkg, args, pkg.dir, post_hook)
+        call_proc(process, args, pkg.dir, post_hook)
     end
 end
 
@@ -111,15 +111,15 @@ local function install(pkg)
         compat.list_extend(args, {"-b",  pkg.branch})
     end
     compat.list_extend(args, {pkg.dir})
-    local post_install = function(code)
-        if code == 0 then
+    local post_install = function(ok)
+        if ok then
             pkg.exists = true
             changes[pkg.name] = 'installed'
             if pkg.run then run_hook(pkg) end
         end
-        output_msg('clone', pkg.name, num_pkgs, code == 0)
+        output_msg('clone', pkg.name, num_pkgs, ok)
     end
-    call_proc("git", pkg, args, nil, post_install)
+    call_proc("git", args, nil, post_install)
 end
 
 
@@ -141,16 +141,16 @@ end
 local function update(pkg)
     if not pkg.exists then return end
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
-    local post_update = function(code)
-        if code == 0 and get_git_hash(pkg.dir) ~= hash then
+    local post_update = function(ok)
+        if ok and get_git_hash(pkg.dir) ~= hash then
             changes[pkg.name] = 'updated'
             if pkg.run then run_hook(pkg) end
-            output_msg('pull', pkg.name, num_pkgs, code == 0)
+            output_msg('pull', pkg.name, num_pkgs, ok)
         else
             output_msg('pull', pkg.name, num_pkgs)
         end
     end
-    call_proc("git", pkg, {"pull"}, pkg.dir, post_update)
+    call_proc("git", {"pull"}, pkg.dir, post_update)
 end
 
 local function iter_dir(fn, dir, args)
