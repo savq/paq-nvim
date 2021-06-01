@@ -60,10 +60,9 @@ To get started with Paq:
 
  1. Import the `paq-nvim` module, and bind the `paq` function:
  >
-    vim.cmd('packadd paq-nvim')
     local Paq = require'paq-nvim'    -- Module
     local paq = Paq.paq              -- Function
-    paq{'savq/paq-nvim', opt=true}   -- Paq manages itself
+    paq 'savq/paq-nvim'              -- Paq manages itself
 <
 
  2. List the packages you want to install using the `paq` function with the

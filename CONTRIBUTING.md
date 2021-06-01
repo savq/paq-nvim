@@ -1,9 +1,8 @@
 # Contributing
 
-Paq is small because my own needs as a Nvim user are pretty simple,
-but that doesn't mean I'm against adding features. If you have suggestions,
-write an issue! Try to be specific. When writing the titles, make the intent clear;
-and for the body of the issue, the more detailed the description the better.
+Paq is small because my own needs as a Nvim user are pretty simple.
+Before asking for a feature request, consider if using another package manager
+which implements that feature would be better for you.
 
 
 ## Issues
