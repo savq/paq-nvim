@@ -100,13 +100,13 @@ local function run_hook(pkg)
 end
 
 local function install(pkg)
-    local args = {'clone', pkg.url}
-    if pkg.exists then
-        return get_count('install', 'nop', num_pkgs)
-    elseif pkg.branch then
-        compat.list_extend(args, {'-b',  pkg.branch})
+    if pkg.exists then return get_count('install', 'nop', num_pkgs) end
+    local args;
+    if pkg.branch then
+        args = {'clone', pkg.url, '--depth=1', '-b',  pkg.branch, pkg.dir}
+    else
+        args = {'clone', pkg.url, '--depth=1', pkg.dir}
     end
-    compat.list_extend(args, {pkg.dir})
     local post_install = function(ok)
         if ok then
             pkg.exists = true
