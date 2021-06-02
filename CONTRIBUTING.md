@@ -1,9 +1,8 @@
 # Contributing
 
-Paq is small because my own needs as a Nvim user are pretty simple,
-but that doesn't mean I'm against adding features. If you have suggestions,
-write an issue! Try to be specific. When writing the titles, make the intent clear;
-and for the body of the issue, the more detailed the description the better.
+Paq is small because my own needs as a Nvim user are pretty simple.
+Before asking for a feature request, consider if using another package manager
+which implements that feature would be better for you.
 
 
 ## Issues
@@ -37,8 +36,3 @@ Other notes:
 - Changes should only affect code related to the issue, avoid cosmetic changes.
 - Use the [luacheck](https://github.com/mpeterv/luacheck) linter to avoid common Lua mistakes.
 - Paq doesn't use a code formatter. _Monkey see, monkey do._
-  - Use double quotes for strings that will be used in I/O, including:
-    paths, command line arguments, patterns, etc.
-  - Use single quotes for strings pretending to be symbols,
-    like the output of `type` or for table indexes.
-
