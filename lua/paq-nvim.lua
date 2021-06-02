@@ -54,11 +54,16 @@ end
 
 local function output_msg(op, name, total, ok, hook)
     local result = (ok and 'ok') or (ok == false and 'fail' or 'nop')
+
     local cur = get_count(op, result, total)
     local count = total ~= -1 and string.format('%d/%d', cur, total) or ''
     if msgs[op] and cur then
         local msg = msgs[op][result]
-        print(string.format('Paq [%s] ' .. msg, count, name, hook))
+        if ok == false then
+            vim.api.nvim_err_writeln(string.format('Paq [%s] ' .. msg, count, name, hook))
+        else
+            print(string.format('Paq [%s] ' .. msg, count, name, hook))
+        end
     end
 end
 
