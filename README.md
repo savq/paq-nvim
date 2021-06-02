@@ -39,20 +39,18 @@ In your init.vim or init.lua, you can write something like:
 
 ```lua
 lua << EOF
+require 'paq-nvim' {
+  -- Add your packages
+  'savq/paq-nvim';                  -- Let Paq manage itself
 
-local paq = require'paq-nvim'.paq  -- Import module and bind `paq` function
-paq 'savq/paq-nvim'                -- Let Paq manage itself
+  'neovim/nvim-lspconfig';          -- Mind the semi-colons
+  'nvim-lua/completion-nvim';
+  'nvim-lua/lsp_extensions.nvim';
 
--- Add your packages
+  {'lervag/vimtex', opt=true};      -- Use braces when passing options
 
-paq 'neovim/nvim-lspconfig'
-paq 'nvim-lua/completion-nvim'
-paq 'nvim-lua/lsp_extensions.nvim'
-
-paq{'lervag/vimtex', opt=true}     -- Use braces when passing options
-
-paq{'dracula/vim', as='dracula'}   -- Use `as` to alias a package name (here `vim`)
-
+  {'dracula/vim', as='dracula'};    -- Use `as` to alias a package name (here `vim`)
+}
 EOF
 ```
 
@@ -60,6 +58,10 @@ Then, run `:PaqInstall`.
 
 In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
 inside a Lua chunk (or in a separate Lua module).
+
+**NOTICE:**
+Calling the `paq` function per package is deprecated. Users should now pass a
+list to the `'paq-nvim'` module instead.
 
 
 ## Commands
