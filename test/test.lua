@@ -3,18 +3,8 @@ local cmd = vim.api.nvim_command
 local vfn = vim.api.nvim_call_function
 
 cmd('packadd paq-nvim')
-
 local TESTPATH = vfn('stdpath', {'data'}) .. '/site/pack/test/'
-
-local function reload_paq()
-    local Pq
-    package.loaded['paq-nvim'] = nil
-    Pq = require('paq-nvim')
-    Pq.setup {
-        path = TESTPATH,
-    }
-    return Pq
-end
+local paq = require('paq-nvim'):setup{path=TESTPATH}
 
 local function test_branch(path, branch)
     local stdout = uv.new_pipe(false)
@@ -28,7 +18,9 @@ local function test_branch(path, branch)
             assert(code == 0, "Paq-test: failed to get git branch")
             stdout:read_stop()
             stdout:close()
-        end)
+        end
+    )
+
     stdout:read_start(function(err, data)
         assert(not err, err)
         if data then
@@ -37,51 +29,48 @@ local function test_branch(path, branch)
     end)
 end
 
+local function load_pkgs()
+    paq {
+        {'badbadnotgood', opt=true};                                 -- should fail to parse
+        {'rust-lang/rust.vim', opt=true};                            -- test opt
+        {'JuliaEditorSupport/julia-vim', as='julia'};                -- test as
 
-local Pq = reload_paq()
-local paq = Pq.paq
+        {as='wiki', url='https://github.com/lervag/wiki.vim'};       -- test url + as
 
-paq{'badbadnotgood', opt=true}                  -- should fail to parse
-paq{'rust-lang/rust.vim', opt=true}             -- test opt
-paq{'JuliaEditorSupport/julia-vim', as='julia'} -- test as
+        {'junegunn/fzf', run=function() vfn('fzf#install', {}) end}; -- test run function
 
-paq{as='wiki',                                  -- test url + as
-    url='https://github.com/lervag/wiki.vim',
+        {'autozimu/LanguageClient-neovim', branch='next', run='bash install.sh'}; -- branch + run command
     }
+end
 
-paq {'junegunn/fzf',                            -- test run function
-    run=function() vfn('fzf#install', {}) end,
-    } 
+local function test_install()
+    paq.install()
+    uv.sleep(5000)
+    assert(uv.fs_scandir(TESTPATH .. 'opt/rust.vim'))
+    assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+    assert(uv.fs_scandir(TESTPATH .. 'start/wiki'))
+    assert(uv.fs_scandir(TESTPATH .. 'start/fzf'))
+    assert(uv.fs_scandir(TESTPATH .. 'start/LanguageClient-neovim'))
 
-paq {'autozimu/LanguageClient-neovim',          -- test branch + run command
-    branch = 'next',
-    run = 'bash install.sh',
+    --test_branch('start/LanguageClient-neovim', 'next')
+end
+
+local function test_clean()
+    paq {
+        {'JuliaEditorSupport/julia-vim', as='julia'};
+        {'autozimu/LanguageClient-neovim', branch='next', run='bash install.sh'};
     }
+    paq.clean()
+    assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+end
 
-Pq.install()
-cmd('sleep 20') -- plenty of time for plugins to download
+local function main()
+    load_pkgs()
+    test_install()
+    test_clean()
+    uv.sleep(5000)
+    --paq.clean()
+end
 
-assert(uv.fs_scandir(TESTPATH .. 'opt/rust.vim'))
-assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
-assert(uv.fs_scandir(TESTPATH .. 'start/wiki'))
-assert(uv.fs_scandir(TESTPATH .. 'start/fzf'))
-assert(uv.fs_scandir(TESTPATH .. 'start/LanguageClient-neovim'))
+main()
 
-
-
-test_branch('start/LanguageClient-neovim', 'next')
-cmd('sleep 20')
-
----- Check clean() doesn't delete everything
-Pq = reload_paq()
-Pq.paq{'JuliaEditorSupport/julia-vim', as='julia'}
-Pq.clean()
-assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
-
-
-
-cmd('sleep 20')
-Pq = reload_paq()
-Pq.clean()
-
-print('Paq-test: FINISHED')

@@ -216,7 +216,7 @@ local function list()
     list_pkgs('Recently removed:', removed)
 end
 
-local function paq(args)
+local function register(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
 
@@ -234,25 +234,26 @@ local function paq(args)
         branch = args.branch,
         dir    = dir,
         exists = (vfn('isdirectory', {dir}) ~= 0),
-        run    = args.run or args.hook, --wait for paq 1.0 to deprecate
+        run    = args.run or args.hook, -- DEPRECATE 1.0
         url    = args.url or 'https://github.com/' .. args[1] .. '.git',
     }
 end
 
-local function setup(args)
+local function setup(self, args)
     assert(type(args) == 'table')
     if type(args.path) == 'string' then
         paq_dir = args.path
     end
+    return self
 end
 
-return {
+return setmetatable({
     install   = function() compat.tbl_map(install, packages) end,
     update    = function() compat.tbl_map(update, packages) end,
     clean     = clean,
     list      = list,
     setup     = setup,
-    paq       = paq,
+    paq       = register, -- DEPRECATE 1.0
     log_open  = function() cmd('sp ' .. LOGFILE) end,
     log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
-}
+},{__call=function(self, tbl) packages={} num_pkgs=0 compat.tbl_map(register, tbl) return self end})
