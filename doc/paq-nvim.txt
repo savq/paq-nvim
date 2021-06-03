@@ -9,15 +9,16 @@ License: MIT
 ==============================================================================
 CONTENTS                                                        *paq-contents*
 
-  Introduction                                            |paq-introduction|
+  Introduction                                           |paq-introduction|
     Features
-  Usage                                                   |paq-usage|
-  Functions and Commands                                  |paq-commands|
-  Package options                                         |paq-options|
-  Commands                                                |paq-commands|
-  Paq directory                                           |paq-dir|
-  Paq log                                                 |paq-log|
-  Miscellaneous                                           |paq-misc|
+  Usage                                                  |paq-usage|
+  Functions and Commands                                 |paq-commands|
+  Package options                                        |paq-options|
+  Commands                                               |paq-commands|
+  Paq directory                                          |paq-dir|
+  Paq log                                                |paq-log|
+  Troubleshooting                                        |paq-troubleshooting|
+  Miscellaneous                                          |paq-misc|
     Using local packages
     Lazy loading
 
@@ -247,8 +248,31 @@ The log file can be found at:
     :echo stdpath('cache') .. '/paq.log'
 <
 
+
 ==============================================================================
-PAQ MISCELLANEOUS                                                   *paq-misc*
+TROUBLESHOOTING                                          *paq-troubleshooting*
+
+Here's a list of steps to take when something goes wrong with Paq:
+
+1. Check Paq's previous messages with |:mes|
+
+2. If you see an error message, check Paq's log with |:PaqLogOpen|. The log
+  records everything written to `stderr` so you might want to look from the
+  bottom up.
+
+Some common issues are listed below.
+
+------------------------------------------------------------------------------
+GitHub Credentials~
+
+Paq clones repositories using HTTPS, which might require you to provide your
+GitHub credentials. It's _strongly_ encouraged to set-up your GitHub
+credentials before using Paq. Consult the relevant git and GitHub
+documentation.
+
+
+==============================================================================
+MISCELLANEOUS                                                       *paq-misc*
 
 These are some features related to using packages, which probably don't
 require Paq. Either because there's already a way to do it in Neovim, or

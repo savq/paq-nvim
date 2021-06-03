@@ -3,6 +3,8 @@ local uv  = vim.loop --alias for Neovim's event loop (libuv)
 -- nvim 0.4 compatibility
 local cmd = vim.api.nvim_command
 local vfn = vim.api.nvim_call_function
+local print_err = vim.api.nvim_err_writeln
+
 local compat = require('paq-nvim.compat')
 
 ----- Constants
@@ -60,7 +62,7 @@ local function output_msg(op, name, total, ok, hook)
     if msgs[op] and cur then
         local msg = msgs[op][result]
         if ok == false then
-            vim.api.nvim_err_writeln(string.format('Paq [%s] ' .. msg, count, name, hook))
+            print_err(string.format('Paq [%s] ' .. msg, count, name, hook))
         else
             print(string.format('Paq [%s] ' .. msg, count, name, hook))
         end
@@ -221,7 +223,7 @@ local function register(args)
     if type(args) == 'string' then args = {args} end
 
     name = args.as or args[1]:match('^[%w-]+/([%w-_.]+)$')
-    if not name then return print('Failed to parse ' .. args[1]) end
+    if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
 
     dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
 

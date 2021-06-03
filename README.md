@@ -35,26 +35,24 @@ git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site
 
 ## Usage
 
-In your init.vim or init.lua, you can write something like:
+In your init.lua, you can write something like:
 
 ```lua
-lua << EOF
 require 'paq-nvim' {
-  -- Add your packages
-  'savq/paq-nvim';                  -- Let Paq manage itself
+    -- Add your packages
+    'savq/paq-nvim';                  -- Let Paq manage itself
 
-  'neovim/nvim-lspconfig';          -- Mind the semi-colons
-  'nvim-lua/completion-nvim';
-  'nvim-lua/lsp_extensions.nvim';
+    'neovim/nvim-lspconfig';          -- Mind the semi-colons
+    'nvim-lua/completion-nvim';
+    'nvim-lua/lsp_extensions.nvim';
 
-  {'lervag/vimtex', opt=true};      -- Use braces when passing options
+    {'lervag/vimtex', opt=true};      -- Use braces when passing options
 
-  {'dracula/vim', as='dracula'};    -- Use `as` to alias a package name (here `vim`)
+    {'dracula/vim', as='dracula'};    -- Use `as` to alias a package name (here `vim`)
 }
-EOF
 ```
 
-Then, run `:PaqInstall`.
+Then, source your configuration (using `luafile %`) and run `:PaqInstall`.
 
 In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
 inside a Lua chunk (or in a separate Lua module).
@@ -92,6 +90,4 @@ The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` inste
 ## Related projects
 
 You can find a [comparison](https://github.com/savq/paq-nvim/wiki/Comparisons)
-with [Packer.nvim](https://github.com/wbthomason/packer.nvim),
-and a [migration guide](https://github.com/savq/paq-nvim/wiki/Migration)
-from Vim8 plugin managers (vim-plug and Minpac) in the [wiki](https://github.com/savq/paq-nvim/wiki).
+with other package managers in the [wiki](https://github.com/savq/paq-nvim/wiki).
