@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-04-05
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-02
 *paq-nvim*
 *paq*
 
@@ -64,7 +64,7 @@ To get started with Paq:
 <
 
  2. Call the paq module with a the list of packages you want to install.
-    each entry in the list is a package repository, for example:
+    Each entry in the list is a package repository, for example:
 >
     paq {
       'savq/paq-nvim';               -- Paq manages itself
