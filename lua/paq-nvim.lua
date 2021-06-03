@@ -256,4 +256,4 @@ return setmetatable({
     paq       = register, -- DEPRECATE 1.0
     log_open  = function() cmd('sp ' .. LOGFILE) end,
     log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
-},{__call=function(self, tbl) packages={} compat.tbl_map(register, tbl) return self end})
+},{__call=function(self, tbl) packages={} num_pkgs=0 compat.tbl_map(register, tbl) return self end})
