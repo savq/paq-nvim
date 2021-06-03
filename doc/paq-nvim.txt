@@ -256,9 +256,15 @@ Here's a list of steps to take when something goes wrong with Paq:
 
 1. Check Paq's previous messages with |:mes|
 
-2. If you see an error message, check Paq's log with |:PaqLogOpen|. The log
-  records everything written to `stderr` so you might want to look from the
-  bottom up.
+2. Check the list of installed and recently removed packages with |:PaqList|.
+
+3. If you see an error message or a package isn't listed as expected, check
+  Paq's log with |:PaqLogOpen|. The log records everything written to `stderr`
+  so you might want to look from the bottom up.
+
+4. If you think the error wasn't caused by git (or another external program
+  called with a hook), consider opening an issue on the paq-nvim GitHub
+  repository.
 
 Some common issues are listed below.
 
