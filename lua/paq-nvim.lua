@@ -185,7 +185,7 @@ local function mark_dir(dir, name, _, list)
     return true
 end
 
-local function clean()
+local function clean(self)
     local ok
     local rm_list = {}
     iter_dir(mark_dir, paq_dir .. 'start', rm_list)
@@ -195,9 +195,10 @@ local function clean()
         output_msg('remove', i.name, #rm_list, ok)
         if ok then changes[i.name] = 'removed' end
     end
+    return self
 end
 
-local function list()
+local function list(self)
     local installed = compat.tbl_filter(function(name) return packages[name].exists end, compat.tbl_keys(packages))
     local removed = compat.tbl_filter(function(name) return changes[name] == 'removed' end,  compat.tbl_keys(changes))
 
@@ -216,6 +217,15 @@ local function list()
 
     list_pkgs('Installed packages:', installed)
     list_pkgs('Recently removed:', removed)
+    return self
+end
+
+local function setup(self, args)
+    assert(type(args) == 'table')
+    if type(args.path) == 'string' then
+        paq_dir = args.path
+    end
+    return self
 end
 
 local function register(args)
@@ -241,21 +251,13 @@ local function register(args)
     }
 end
 
-local function setup(self, args)
-    assert(type(args) == 'table')
-    if type(args.path) == 'string' then
-        paq_dir = args.path
-    end
-    return self
-end
-
 return setmetatable({
-    install   = function() compat.tbl_map(install, packages) end,
-    update    = function() compat.tbl_map(update, packages) end,
+    paq       = register, -- DEPRECATE 1.0
+    install   = function(self) compat.tbl_map(install, packages) return self end,
+    update    = function(self) compat.tbl_map(update, packages) return self end,
     clean     = clean,
     list      = list,
     setup     = setup,
-    paq       = register, -- DEPRECATE 1.0
-    log_open  = function() cmd('sp ' .. LOGFILE) end,
-    log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
+    log_open  = function(self) cmd('sp ' .. LOGFILE) return self end,
+    log_clean = function(self) uv.fs_unlink(LOGFILE); print('Paq log file deleted') return self end,
 },{__call=function(self, tbl) packages={} num_pkgs=0 compat.tbl_map(register, tbl) return self end})
