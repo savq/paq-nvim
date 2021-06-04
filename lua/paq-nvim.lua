@@ -16,11 +16,7 @@ local packages = {} --table of 'name':{options} pairs
 local changes  = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
 local num_pkgs = 0
 
-local ops = {
-    install = {ok=0, fail=0, nop=0},
-    update  = {ok=0, fail=0, nop=0},
-    remove  = {ok=0, fail=0, nop=0},
-}
+local ops;
 
 local msgs = {
     install = {
@@ -41,6 +37,16 @@ local msgs = {
         fail = 'failed to run hook for %s (%s)',
     },
 }
+
+local function ops_counter()
+    return {
+        install = {ok=0, fail=0, nop=0},
+        update  = {ok=0, fail=0, nop=0},
+        remove  = {ok=0, fail=0, nop=0},
+    }
+end
+
+ops = ops_counter -- FIXME: This is a hack to keep the old paq system and the new __call system working
 
 local function get_count(op, result, total)
     local c = ops[op]
@@ -251,6 +257,14 @@ local function register(args)
     }
 end
 
+local function init(self, tbl)
+    packages={}
+    num_pkgs=0
+    ops = ops_counter()
+    compat.tbl_map(register, tbl)
+    return self
+end
+
 return setmetatable({
     paq       = register, -- DEPRECATE 1.0
     install   = function(self) compat.tbl_map(install, packages) return self end,
@@ -260,4 +274,4 @@ return setmetatable({
     setup     = setup,
     log_open  = function(self) cmd('sp ' .. LOGFILE) return self end,
     log_clean = function(self) uv.fs_unlink(LOGFILE); print('Paq log file deleted') return self end,
-},{__call=function(self, tbl) packages={} num_pkgs=0 compat.tbl_map(register, tbl) return self end})
+},{__call=init})
