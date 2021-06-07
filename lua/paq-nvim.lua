@@ -222,8 +222,15 @@ local function register(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
 
-    name = args.as or args[1]:match('^[%w-]+/([%w-_.]+)$')
-    if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
+    if args.as then
+        name = args.as
+    elseif args.url then
+        name = args.url:gsub('%.git$', ''):match('/([%w-_.]+)$')
+        if not name then print_err('Paq: Failed to parse ' .. args.url) return end
+    else
+        name = args[1]:match('^[%w-]+/([%w-_.]+)$')
+        if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
+    end
 
     dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
 
