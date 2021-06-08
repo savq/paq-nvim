@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-02
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-08
 *paq-nvim*
 *paq*
 
@@ -10,7 +10,6 @@ License: MIT
 CONTENTS                                                        *paq-contents*
 
   Introduction                                           |paq-introduction|
-    Features
   Usage                                                  |paq-usage|
   Functions and Commands                                 |paq-commands|
   Package options                                        |paq-options|
@@ -42,16 +41,6 @@ ways to handle package loading, that can be used without any any special
 scripting.
 
 NOTE: Requirements and installation instructions can be found in the README.
-
-
-------------------------------------------------------------------------------
-FEATURES~
-
-- Easy to use and configure
-
-- Fast installation and updating using Neovim's |loop|
-
-- Small implementation, around 150 LOC
 
 
 ==============================================================================
@@ -360,7 +349,7 @@ writing there isn't a way to declare an autocommand using only Lua.
 
 Example:
 >
-    paq {
+    require 'paq-nvim' {
       {'author/heavy-plugin', opt=true};
     }
     vim.cmd [[autocmd Filetype ruby packadd! heavy-plugin]]
