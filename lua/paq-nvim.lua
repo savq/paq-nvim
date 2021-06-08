@@ -16,11 +16,7 @@ local packages = {} --table of 'name':{options} pairs
 local changes  = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
 local num_pkgs = 0
 
-local ops = {
-    install = {ok=0, fail=0, nop=0},
-    update  = {ok=0, fail=0, nop=0},
-    remove  = {ok=0, fail=0, nop=0},
-}
+local ops;
 
 local msgs = {
     install = {
@@ -41,6 +37,16 @@ local msgs = {
         fail = 'failed to run hook for %s (%s)',
     },
 }
+
+local function ops_counter()
+    return {
+        install = {ok=0, fail=0, nop=0},
+        update  = {ok=0, fail=0, nop=0},
+        remove  = {ok=0, fail=0, nop=0},
+    }
+end
+
+ops = ops_counter -- FIXME: This is a hack to keep the old paq system and the new __call system working
 
 local function get_count(op, result, total)
     local c = ops[op]
@@ -185,7 +191,7 @@ local function mark_dir(dir, name, _, list)
     return true
 end
 
-local function clean()
+local function clean(self)
     local ok
     local rm_list = {}
     iter_dir(mark_dir, paq_dir .. 'start', rm_list)
@@ -195,9 +201,10 @@ local function clean()
         output_msg('remove', i.name, #rm_list, ok)
         if ok then changes[i.name] = 'removed' end
     end
+    return self
 end
 
-local function list()
+local function list(self)
     local installed = compat.tbl_filter(function(name) return packages[name].exists end, compat.tbl_keys(packages))
     local removed = compat.tbl_filter(function(name) return changes[name] == 'removed' end,  compat.tbl_keys(changes))
 
@@ -216,14 +223,30 @@ local function list()
 
     list_pkgs('Installed packages:', installed)
     list_pkgs('Recently removed:', removed)
+    return self
+end
+
+local function setup(self, args)
+    assert(type(args) == 'table')
+    if type(args.path) == 'string' then
+        paq_dir = args.path
+    end
+    return self
 end
 
 local function register(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
 
-    name = args.as or args[1]:match('^[%w-]+/([%w-_.]+)$')
-    if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
+    if args.as then
+        name = args.as
+    elseif args.url then
+        name = args.url:gsub('%.git$', ''):match('/([%w-_.]+)$')
+        if not name then print_err('Paq: Failed to parse ' .. args.url) return end
+    else
+        name = args[1]:match('^[%w-]+/([%w-_.]+)$')
+        if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
+    end
 
     dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
 
@@ -241,21 +264,21 @@ local function register(args)
     }
 end
 
-local function setup(self, args)
-    assert(type(args) == 'table')
-    if type(args.path) == 'string' then
-        paq_dir = args.path
-    end
+local function init(self, tbl)
+    packages={}
+    num_pkgs=0
+    ops = ops_counter()
+    compat.tbl_map(register, tbl)
     return self
 end
 
 return setmetatable({
-    install   = function() compat.tbl_map(install, packages) end,
-    update    = function() compat.tbl_map(update, packages) end,
+    paq       = register, -- DEPRECATE 1.0
+    install   = function(self) compat.tbl_map(install, packages) return self end,
+    update    = function(self) compat.tbl_map(update, packages) return self end,
     clean     = clean,
     list      = list,
     setup     = setup,
-    paq       = register, -- DEPRECATE 1.0
-    log_open  = function() cmd('sp ' .. LOGFILE) end,
-    log_clean = function() uv.fs_unlink(LOGFILE); print('Paq log file deleted') end,
-},{__call=function(self, tbl) packages={} num_pkgs=0 compat.tbl_map(register, tbl) return self end})
+    log_open  = function(self) cmd('sp ' .. LOGFILE) return self end,
+    log_clean = function(self) uv.fs_unlink(LOGFILE); print('Paq log file deleted') return self end,
+},{__call=init})

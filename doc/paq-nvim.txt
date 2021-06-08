@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-02
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-08
 *paq-nvim*
 *paq*
 
@@ -10,7 +10,6 @@ License: MIT
 CONTENTS                                                        *paq-contents*
 
   Introduction                                           |paq-introduction|
-    Features
   Usage                                                  |paq-usage|
   Functions and Commands                                 |paq-commands|
   Package options                                        |paq-options|
@@ -42,16 +41,6 @@ ways to handle package loading, that can be used without any any special
 scripting.
 
 NOTE: Requirements and installation instructions can be found in the README.
-
-
-------------------------------------------------------------------------------
-FEATURES~
-
-- Easy to use and configure
-
-- Fast installation and updating using Neovim's |loop|
-
-- Small implementation, around 150 LOC
 
 
 ==============================================================================
@@ -153,17 +142,24 @@ imported as `paq`, the functions are:
 PACKAGE OPTIONS                                                  *paq-options*
 
 Each element in the list of packages can be a table with named options.
-These options don't need to be in any particular order, as long as the
-name of the repository is the first element on the table.
+These options don't need to be in any particular order, except for the package
+string (see 1 below).
 
 The options are the following:
 
-`as`
-  String indicating the alias or name of the plugin, which determines the name
-  of the directory where Paq will download the plugin.
+`1` (or package string)
 
-  If left unspecified, Paq will infer it from the plugin string.
-  For `'<GitHub-username>/<repo-name>'` that is `<repo-name>`.
+  The first entry may be a string like `'<GitHub-username>/<repo-name>'`
+  indicating a GitHub repository. The name of the package will be inferred from
+  this string, i.e. `<repo-name>`.  If `url` is unset, this option is
+  required.
+
+  Default value: `nil`
+
+
+`as`
+  String indicating the alias or local name of the package. This determines
+  the name of the directory where Paq will download the package.
 
   Default value: `nil`
 
@@ -207,13 +203,37 @@ The options are the following:
 
 
 `url`
-  String indicating the URL of the git repository. This allows Paq to
-  download packages from any website. For convenience, if `url` is unset,
-  Paq will try to find the repository on GitHub.com.
+  String indicating the URL of the git repository.
+
+  If the `url` is set, Paq will try to infer the name of the repository from
+  it. For example, for `url='htttps://domain.com/some/path/repo-vim.git'` it
+  would be `repo-vim`.
+
+  For convenience, if `url` is unset, Paq will try to find the repository on
+  GitHub.com, based on the package string.
 
   Default value: `'https://github.com/' .. '<GitHub-username>/<repo-name>'`
 
 
+------------------------------------------------------------------------------
+Package Name Inference~
+
+You might have noticed the local name of the package may depend on three of
+the options given above. To reiterate, the precedence order of these options is:
+
+  1. `as` option
+  2. `url` option
+  3. Package string (`1`)
+
+`as` has the highest precedence, but it doesn't inform Paq about the origin of
+the package, so you always have to use it along side the package string or
+`url`. The package string and `url` may be used on their own, but will set the
+local name of the package to that of the remote repository. In practice, this
+means you never have to use all three together, and most of the time the
+package string alone will be enough.
+
+
+------------------------------------------------------------------------------
 Example~
 
 The language client `coc.nvim` recommends installing the release branch of
@@ -329,7 +349,7 @@ writing there isn't a way to declare an autocommand using only Lua.
 
 Example:
 >
-    paq {
+    require 'paq-nvim' {
       {'author/heavy-plugin', opt=true};
     }
     vim.cmd [[autocmd Filetype ruby packadd! heavy-plugin]]
