@@ -46,7 +46,7 @@ local function ops_counter()
     }
 end
 
-ops = ops_counter -- FIXME: This is a hack to keep the old paq system and the new __call system working
+ops = ops_counter() -- FIXME: This is a hack to keep the old paq system and the new __call system working
 
 local function get_count(op, result, total)
     local c = ops[op]
