@@ -5,7 +5,7 @@ local cmd = vim.api.nvim_command
 local vfn = vim.api.nvim_call_function
 local print_err = vim.api.nvim_err_writeln
 
-local compat = require('paq-nvim.compat')
+local compat = require('paq.compat')
 
 ----- Constants
 local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'

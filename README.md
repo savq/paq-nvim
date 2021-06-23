@@ -38,7 +38,7 @@ git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site
 In your init.lua, you can write something like:
 
 ```lua
-require 'paq-nvim' {
+require 'paq' {
     -- Add your packages
     'savq/paq-nvim';                  -- Let Paq manage itself
 
@@ -59,7 +59,7 @@ inside a Lua chunk (or in a separate Lua module).
 
 **NOTICE:**
 Calling the `paq` function per package is deprecated. Users should now pass a
-list to the `'paq-nvim'` module instead.
+list to the `'paq'` module instead.
 
 
 ## Commands

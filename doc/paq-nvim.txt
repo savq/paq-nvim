@@ -50,14 +50,14 @@ To get started with Paq:
 
  1. Import the `paq-nvim` module:
  >
-    local paq = require 'paq-nvim'    -- Module
+    local paq = require 'paq'    -- Module
 <
 
  2. Call the paq module with a the list of packages you want to install.
     Each entry in the list is a package repository, for example:
 >
     paq {
-      'savq/paq-nvim';               -- Paq manages itself
+      'savq/paq-nvim';           -- Paq manages itself
       'lervag/vimtex';
     }
 <
@@ -240,7 +240,7 @@ The language client `coc.nvim` recommends installing the release branch of
 their repository. If we also wanted to install it as an optional package,
 we could call `paq` like:
 >
-    local paq = require 'paq-nvim'
+    local paq = require 'paq'
     paq {
         {'neoclide/coc.nvim', opt=true, branch='release'};
     }
@@ -349,7 +349,7 @@ writing there isn't a way to declare an autocommand using only Lua.
 
 Example:
 >
-    require 'paq-nvim' {
+    require 'paq' {
       {'author/heavy-plugin', opt=true};
     }
     vim.cmd [[autocmd Filetype ruby packadd! heavy-plugin]]
