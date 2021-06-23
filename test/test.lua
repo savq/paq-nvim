@@ -69,7 +69,9 @@ local function main()
     test_install()
     test_clean()
     uv.sleep(5000)
-    --paq.clean()
+    -- Clean up
+    paq {}
+    paq.clean()
 end
 
 main()

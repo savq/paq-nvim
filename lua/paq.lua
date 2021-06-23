@@ -1,8 +1,10 @@
 local vim = require('paq.compat')
 local uv = vim.loop
 local print_err = vim.api.nvim_err_writeln
+
 local LOGFILE = vim.fn.stdpath('cache') .. '/paq.log'
 local paq_dir = vim.fn.stdpath('data') .. '/site/pack/paqs/'
+
 local packages = {} -- 'name' = {options} pairs
 local last_ops = {} -- 'name' = 'op' pairs
 local num_pkgs = 0
@@ -152,46 +154,26 @@ local function update(pkg)
     call_proc('git', {'pull'}, pkg.dir, post_update)
 end
 
-local function iter_dir(fn, dir, args)
-    local child, name, t, ok
-    local handle = uv.fs_scandir(dir)
+local function remove(packdir) -- where packdir = start | opt
+    local name, dir, pkg;
+    local to_rm = {}
+    local c = 0
+
+    local handle = uv.fs_scandir(packdir)
     while handle do
-        name, t = uv.fs_scandir_next(handle)
+        name = uv.fs_scandir_next(handle)
         if not name then break end
-        child = dir .. '/' .. name
-        ok = fn(child, name, t, args)
-        if not ok then return end
+        pkg = packages[name]
+        dir = packdir .. name
+        if not (pkg and pkg.dir == dir) then
+            to_rm[name] = dir
+            c = c + 1
+        end
     end
-    return true
-end
 
-local function rm_dir(child, _, t)
-    if t == 'directory' then
-        return iter_dir(rm_dir, child) and uv.fs_rmdir(child)
-    else
-        return uv.fs_unlink(child)
+    for name, dir in pairs(to_rm) do
+        call_proc("rm", {"-r", "-f", dir}, packdir, function(ok) report("remove", name, c, ok) end)
     end
-end
-
-local function mark_dir(dir, name, _, list)
-    local pkg = packages[name]
-    if not (pkg and pkg.dir == dir) then
-        table.insert(list, {name=name, dir=dir})
-    end
-    return true
-end
-
-local function clean(self)
-    local ok
-    local rm_list = {}
-    iter_dir(mark_dir, paq_dir .. 'start', rm_list)
-    iter_dir(mark_dir, paq_dir .. 'opt', rm_list)
-    for _, i in ipairs(rm_list) do
-        ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
-        report('remove', i.name, #rm_list, ok)
-        if ok then last_ops[i.name] = 'remove' end
-    end
-    return self
 end
 
 local function list(self)
@@ -263,7 +245,7 @@ return setmetatable({
     paq       = register, -- DEPRECATE 1.0
     install   = function(self) vim.tbl_map(install, packages) return self end,
     update    = function(self) vim.tbl_map(update, packages) return self end,
-    clean     = clean,
+    clean     = function(self)  remove(paq_dir .. 'start/'); remove(paq_dir .. 'opt/') end,
     list      = list,
     setup     = setup,
     log_open  = function(self) vim.cmd('sp ' .. LOGFILE) return self end,
