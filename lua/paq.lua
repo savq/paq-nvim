@@ -38,7 +38,7 @@ local function ops_counter()
     }
 end
 
-ops = ops_counter() -- FIXME: This is a hack to keep the old paq system and the new __call system working
+ops = ops_counter() -- COMPATIBILTY
 
 local function update_count(op, result, total)
     local c, t = ops[op]
@@ -234,11 +234,25 @@ local function register(args)
     }
 end
 
+local function set_cmds()
+    vim.tbl_map(vim.cmd, {
+        [[command! PaqInstall  lua require('paq').install()]],
+        [[command! PaqUpdate   lua require('paq').update()]],
+        [[command! PaqClean    lua require('paq').clean()]],
+        [[command! PaqList     lua require('paq').list()]],
+        [[command! PaqLogOpen  lua require('paq').log_open()]],
+        [[command! PaqLogClean lua require('paq').log_clean()]],
+    })
+end
+
+set_cmds() -- COMPATIBILTY
+
 local function init(self, tbl)
     packages={}
     num_pkgs=0
     ops = ops_counter()
     vim.tbl_map(register, tbl)
+    --set_cmds()
     return self
 end
 
