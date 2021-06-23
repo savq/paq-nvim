@@ -21,28 +21,28 @@ local ops;
 local msgs = {
     install = {
         ok = 'installed %s',
-        fail = 'failed to install %s',
+        err = 'failed to install %s',
     },
     update = {
         ok = 'updated %s',
-        fail = 'failed to update %s',
+        err = 'failed to update %s',
         nop = '(up-to-date) %s',
     },
     remove = {
         ok = 'removed %s',
-        fail = 'failed to remove %s',
+        err = 'failed to remove %s',
     },
     hook = {
         ok = 'ran hook for %s (%s)',
-        fail = 'failed to run hook for %s (%s)',
+        err = 'failed to run hook for %s (%s)',
     },
 }
 
 local function ops_counter()
     return {
-        install = {ok=0, fail=0, nop=0},
-        update  = {ok=0, fail=0, nop=0},
-        remove  = {ok=0, fail=0, nop=0},
+        install = {ok=0, err=0, nop=0},
+        update  = {ok=0, err=0, nop=0},
+        remove  = {ok=0, err=0, nop=0},
     }
 end
 
@@ -53,15 +53,15 @@ local function update_count(op, result, total)
     if not c then return end
     c[result] = c[result] + 1
     t = c[result]
-    if c.ok + c.fail + c.nop == total then
-        c.ok, c.fail, c.nop = 0, 0, 0
+    if c.ok + c.err + c.nop == total then
+        c.ok, c.err, c.nop = 0, 0, 0
         cmd('packloadall! | helptags ALL')
     end
     return t
 end
 
-local function output_msg(op, name, total, ok, hook)
-    local result = (ok and 'ok') or (ok == false and 'fail' or 'nop')
+local function report(op, name, total, ok, hook)
+    local result = (ok and 'ok') or (ok == false and 'err' or 'nop')
 
     local cur = update_count(op, result, total)
     local count = total ~= -1 and string.format('%d/%d', cur, total) or ''
@@ -98,7 +98,7 @@ local function run_hook(pkg)
     if t == 'function' then
         cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
-        output_msg('hook', pkg.name, -1, ok, 'function')
+        report('hook', pkg.name, -1, ok, 'function')
     elseif t == 'string' then
         local args = {}
         for word in pkg.run:gmatch('%S+') do
@@ -106,7 +106,7 @@ local function run_hook(pkg)
         end
         local process = table.remove(args, 1)
         local post_hook = function(ok)
-            output_msg('hook', pkg.name, -1, ok, args[1])
+            report('hook', pkg.name, -1, ok, args[1])
         end
         call_proc(process, args, pkg.dir, post_hook)
     end
@@ -126,7 +126,7 @@ local function install(pkg)
             last_ops[pkg.name] = 'install'
             if pkg.run then run_hook(pkg) end
         end
-        output_msg('install', pkg.name, num_pkgs, ok)
+        report('install', pkg.name, num_pkgs, ok)
     end
     call_proc('git', args, nil, post_install)
 end
@@ -154,9 +154,9 @@ local function update(pkg)
         if ok and get_git_hash(pkg.dir) ~= hash then
             last_ops[pkg.name] = 'update'
             if pkg.run then run_hook(pkg) end
-            output_msg('update', pkg.name, num_pkgs, ok)
+            report('update', pkg.name, num_pkgs, ok)
         else
-            output_msg('update', pkg.name, num_pkgs)
+            report('update', pkg.name, num_pkgs)
         end
     end
     call_proc('git', {'pull'}, pkg.dir, post_update)
@@ -198,7 +198,7 @@ local function clean(self)
     iter_dir(mark_dir, paq_dir .. 'opt', rm_list)
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
-        output_msg('remove', i.name, #rm_list, ok)
+        report('remove', i.name, #rm_list, ok)
         if ok then last_ops[i.name] = 'remove' end
     end
     return self
