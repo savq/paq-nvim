@@ -1,22 +1,12 @@
-local uv  = vim.loop --alias for Neovim's event loop (libuv)
-
--- nvim 0.4 compatibility
-local cmd = vim.api.nvim_command
-local vfn = vim.api.nvim_call_function
+local vim = require('paq.compat')
+local uv = vim.loop
 local print_err = vim.api.nvim_err_writeln
-
-local compat = require('paq.compat')
-
------ Constants
-local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
-
------ Globals
-local paq_dir  = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
-local packages = {} --table of 'name':{options} pairs
-local last_ops = {} -- table of 'name':'op' pairs where 'op' is the last operation performed on packages['name']
+local LOGFILE = vim.fn.stdpath('cache') .. '/paq.log'
+local paq_dir = vim.fn.stdpath('data') .. '/site/pack/paqs/'
+local packages = {} -- 'name' = {options} pairs
+local last_ops = {} -- 'name' = 'op' pairs
 local num_pkgs = 0
-
-local ops;
+local ops; -- DEPRECATE 1.0
 
 local msgs = {
     install = {
@@ -55,7 +45,7 @@ local function update_count(op, result, total)
     t = c[result]
     if c.ok + c.err + c.nop == total then
         c.ok, c.err, c.nop = 0, 0, 0
-        cmd('packloadall! | helptags ALL')
+        vim.cmd('packloadall! | helptags ALL')
     end
     return t
 end
@@ -96,7 +86,7 @@ end
 local function run_hook(pkg)
     local t = type(pkg.run)
     if t == 'function' then
-        cmd('packadd ' .. pkg.name)
+        vim.cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
         report('hook', pkg.name, -1, ok, 'function')
     elseif t == 'string' then
@@ -205,8 +195,8 @@ local function clean(self)
 end
 
 local function list(self)
-    local installed = compat.tbl_filter(function(name) return packages[name].exists end, compat.tbl_keys(packages))
-    local removed = compat.tbl_filter(function(name) return last_ops[name] == 'remove' end,  compat.tbl_keys(last_ops))
+    local installed = vim.tbl_filter(function(name) return packages[name].exists end, vim.tbl_keys(packages))
+    local removed = vim.tbl_filter(function(name) return last_ops[name] == 'remove' end,  vim.tbl_keys(last_ops))
     table.sort(installed)
     table.sort(removed)
 
@@ -255,7 +245,7 @@ local function register(args)
         name   = name,
         branch = args.branch,
         dir    = dir,
-        exists = (vfn('isdirectory', {dir}) ~= 0),
+        exists = vim.fn.isdirectory(dir) ~= 0,
         run    = args.run or args.hook, -- DEPRECATE 1.0
         url    = args.url or 'https://github.com/' .. args[1] .. '.git',
     }
@@ -265,17 +255,17 @@ local function init(self, tbl)
     packages={}
     num_pkgs=0
     ops = ops_counter()
-    compat.tbl_map(register, tbl)
+    vim.tbl_map(register, tbl)
     return self
 end
 
 return setmetatable({
     paq       = register, -- DEPRECATE 1.0
-    install   = function(self) compat.tbl_map(install, packages) return self end,
-    update    = function(self) compat.tbl_map(update, packages) return self end,
+    install   = function(self) vim.tbl_map(install, packages) return self end,
+    update    = function(self) vim.tbl_map(update, packages) return self end,
     clean     = clean,
     list      = list,
     setup     = setup,
-    log_open  = function(self) cmd('sp ' .. LOGFILE) return self end,
+    log_open  = function(self) vim.cmd('sp ' .. LOGFILE) return self end,
     log_clean = function(self) uv.fs_unlink(LOGFILE); print('Paq log file deleted') return self end,
 },{__call=init})
