@@ -147,7 +147,7 @@ string (see 1 below).
 
 The options are the following:
 
-`1` (or package string)
+`1` (package string)
 
   The first entry may be a string like `'<GitHub-username>/<repo-name>'`
   indicating a GitHub repository. The name of the package will be inferred from
@@ -171,6 +171,22 @@ The options are the following:
   Default value: `nil`
 
 
+`opt`
+  Boolean indicating whether the package is optional or not. If set,
+  the package will be in the optional packages directory. See |packages|
+  and |packadd|.
+
+  Default value: `false`
+
+
+`pin`
+  Boolean indicating whether the package is pinned or not. If a package is
+  pinned then it will be installed, but it will not be updated when calling
+  |PaqUpdate|.
+
+  Default value: `false`
+
+
 `run`
   Either a string or a function to be executed after installing or updating
   a package. Useful for packages that require extra configuration or
@@ -192,14 +208,6 @@ The options are the following:
 
 `hook`
   Deprecated. Use the `run` option instead.
-
-
-`opt`
-  Boolean indicating whether the package is optional or not. If set,
-  the package will be in the optional packages directory. See |packages|
-  and |packadd|.
-
-  Default value: `false`
 
 
 `url`

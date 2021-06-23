@@ -75,7 +75,8 @@ list to the `'paq'` module instead.
 |--------|----------|-----------------------------------------------------------|
 | as     | string   | Name to use for the package locally                       |
 | branch | string   | Branch of the repository                                  |
-| opt    | boolean  | Is the package optional?                                  |
+| opt    | boolean  | Optional packages are not loaded on startup               |
+| pin    | boolean  | Pinned packages are not updated                           |
 | run    | string   | Shell command to run after install/update                 |
 | run    | function | Lua function to run after install/update                  |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |

@@ -140,7 +140,7 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists then update_count('update', 'nop', num_pkgs) return end
+    if not pkg.exists or pkg.pin then update_count('update', 'nop', num_pkgs) return end
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
     local post_update = function(ok)
         if ok and get_git_hash(pkg.dir) ~= hash then
@@ -228,6 +228,7 @@ local function register(args)
         branch = args.branch,
         dir    = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
+        pin    = args.pin,
         run    = args.run or args.hook, -- DEPRECATE 1.0
         url    = args.url or 'https://github.com/' .. args[1] .. '.git',
     }
