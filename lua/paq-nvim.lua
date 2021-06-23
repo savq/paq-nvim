@@ -48,22 +48,22 @@ end
 
 ops = ops_counter() -- FIXME: This is a hack to keep the old paq system and the new __call system working
 
-local function get_count(op, result, total)
-    local c = ops[op]
-    if c then
-        if c.ok + c.fail + c.nop == total then
-            c.ok, c.fail, c.nop = 0, 0, 0
-            cmd('packloadall! | helptags ALL')
-        end
-        c[result] = c[result] + 1
-        return c[result]
+local function update_count(op, result, total)
+    local c, t = ops[op]
+    if not c then return end
+    c[result] = c[result] + 1
+    t = c[result]
+    if c.ok + c.fail + c.nop == total then
+        c.ok, c.fail, c.nop = 0, 0, 0
+        cmd('packloadall! | helptags ALL')
     end
+    return t
 end
 
 local function output_msg(op, name, total, ok, hook)
     local result = (ok and 'ok') or (ok == false and 'fail' or 'nop')
 
-    local cur = get_count(op, result, total)
+    local cur = update_count(op, result, total)
     local count = total ~= -1 and string.format('%d/%d', cur, total) or ''
     if msgs[op] and cur then
         local msg = msgs[op][result]
@@ -113,7 +113,7 @@ local function run_hook(pkg)
 end
 
 local function install(pkg)
-    if pkg.exists then return get_count('install', 'nop', num_pkgs) end
+    if pkg.exists then return update_count('install', 'nop', num_pkgs) end
     local args;
     if pkg.branch then
         args = {'clone', pkg.url, '--depth=1', '-b',  pkg.branch, pkg.dir}
@@ -148,7 +148,7 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists then return end
+    if not pkg.exists then update_count('update', 'nop', num_pkgs) return end
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
     local post_update = function(ok)
         if ok and get_git_hash(pkg.dir) ~= hash then
