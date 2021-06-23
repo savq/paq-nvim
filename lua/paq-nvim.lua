@@ -13,7 +13,7 @@ local LOGFILE = vfn('stdpath', {'cache'}) .. '/paq.log'
 ----- Globals
 local paq_dir  = vfn('stdpath', {'data'}) .. '/site/pack/paqs/'
 local packages = {} --table of 'name':{options} pairs
-local changes  = {} --table of 'name':'change' pairs  ---TODO: Rename to states?
+local last_ops = {} -- table of 'name':'op' pairs where 'op' is the last operation performed on packages['name']
 local num_pkgs = 0
 
 local ops;
@@ -123,7 +123,7 @@ local function install(pkg)
     local post_install = function(ok)
         if ok then
             pkg.exists = true
-            changes[pkg.name] = 'installed'
+            last_ops[pkg.name] = 'install'
             if pkg.run then run_hook(pkg) end
         end
         output_msg('install', pkg.name, num_pkgs, ok)
@@ -152,7 +152,7 @@ local function update(pkg)
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
     local post_update = function(ok)
         if ok and get_git_hash(pkg.dir) ~= hash then
-            changes[pkg.name] = 'updated'
+            last_ops[pkg.name] = 'update'
             if pkg.run then run_hook(pkg) end
             output_msg('update', pkg.name, num_pkgs, ok)
         else
@@ -199,30 +199,27 @@ local function clean(self)
     for _, i in ipairs(rm_list) do
         ok = iter_dir(rm_dir, i.dir) and uv.fs_rmdir(i.dir)
         output_msg('remove', i.name, #rm_list, ok)
-        if ok then changes[i.name] = 'removed' end
+        if ok then last_ops[i.name] = 'remove' end
     end
     return self
 end
 
 local function list(self)
     local installed = compat.tbl_filter(function(name) return packages[name].exists end, compat.tbl_keys(packages))
-    local removed = compat.tbl_filter(function(name) return changes[name] == 'removed' end,  compat.tbl_keys(changes))
-
+    local removed = compat.tbl_filter(function(name) return last_ops[name] == 'remove' end,  compat.tbl_keys(last_ops))
     table.sort(installed)
     table.sort(removed)
 
-    local symb_tbl = {installed='+', updated='*', removed=' '}
-    local prefix = function(name)
-        return '   ' .. (symb_tbl[changes[name]] or ' ') .. name
+    local sym_tbl = {install='+', update='*', remove=' '}
+    for header, pkgs in pairs{['Installed packages:']=installed, ['Recently removed:']=removed} do
+        if #pkgs ~= 0 then
+            print(header)
+            for _, name in ipairs(pkgs) do
+                print('  ', sym_tbl[last_ops[name]] or ' ', name)
+            end
+        end
     end
 
-    local list_pkgs = function(header, pkgs)
-        if #pkgs ~= 0 then print(header) end
-        for _, v in ipairs(compat.tbl_map(prefix, pkgs)) do print(v) end
-    end
-
-    list_pkgs('Installed packages:', installed)
-    list_pkgs('Recently removed:', removed)
     return self
 end
 
