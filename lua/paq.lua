@@ -26,9 +26,10 @@ local msgs = {
     },
     hook = {
         ok = 'ran hook for %s (%s)',
-        err = 'failed to run hook for %s (%s)',
+        err = 'failed to run hook for %s',
     },
 }
+
 local function Counter(op) counters[op]={ok=0, err=0, nop=0} end
 
 local function update_count(op, result, total)
@@ -43,19 +44,13 @@ local function update_count(op, result, total)
     return t
 end
 
-local function report(op, name, total, ok, hook)
-    local result = (ok and 'ok') or (ok == false and 'err' or 'nop')
-
+local function report(op, result, name, total)
+    local total = total or num_pkgs
     local cur = update_count(op, result, total)
-    local count = total ~= -1 and string.format('%d/%d', cur, total) or ''
-    if msgs[op] and cur then
-        local msg = msgs[op][result]
-        if ok == false then
-            print_err(string.format('Paq [%s] ' .. msg, count, name, hook))
-        else
-            print(string.format('Paq [%s] ' .. msg, count, name, hook))
-        end
-    end
+    local count = cur and string.format('%d/%d', cur, total) or ''
+    local msg = msgs[op][result]
+    local p = result == "err" and print_err or print
+    p(string.format('Paq [%s] ' .. msg, count, name, hook))
 end
 
 local function call_proc(process, args, cwd, cb)
@@ -81,35 +76,30 @@ local function run_hook(pkg)
     if t == 'function' then
         vim.cmd('packadd ' .. pkg.name)
         local ok = pcall(pkg.run)
-        report('hook', pkg.name, -1, ok, 'function')
+        report('hook', ok and 'ok' or 'err', pkg.name)
     elseif t == 'string' then
         local args = {}
         for word in pkg.run:gmatch('%S+') do
             table.insert(args, word)
         end
         local process = table.remove(args, 1)
-        local post_hook = function(ok)
-            report('hook', pkg.name, -1, ok, args[1])
-        end
+        local post_hook = function(ok) report('hook', ok and 'ok' or 'err', pkg.name) end
         call_proc(process, args, pkg.dir, post_hook)
     end
 end
 
 local function install(pkg)
-    if pkg.exists then return update_count('install', 'nop', num_pkgs) end
-    local args;
-    if pkg.branch then
-        args = {'clone', pkg.url, '--depth=1', '-b',  pkg.branch, pkg.dir}
-    else
-        args = {'clone', pkg.url, '--depth=1', pkg.dir}
-    end
+    if pkg.exists then return update_count('install', 'nop', pkg.name) end
+    local args = pkg.branch
+        and {'clone', pkg.url, '--depth=1', '-b',  pkg.branch, pkg.dir}
+        or {'clone', pkg.url, '--depth=1', pkg.dir}
     local post_install = function(ok)
         if ok then
             pkg.exists = true
             last_ops[pkg.name] = 'install'
             if pkg.run then run_hook(pkg) end
         end
-        report('install', pkg.name, num_pkgs, ok)
+        report('install', ok and "ok" or "err", pkg.name)
     end
     call_proc('git', args, nil, post_install)
 end
@@ -130,15 +120,16 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists or pkg.pin then update_count('update', 'nop', num_pkgs) return end
+    if not pkg.exists or pkg.pin then update_count('update', 'nop', pkg.name) return end
     local hash = get_git_hash(pkg.dir) -- TODO: Add setup option to disable hash checking
     local post_update = function(ok)
-        if ok and get_git_hash(pkg.dir) ~= hash then
+        if not ok then return report('update', 'err', pkg.name) end
+        if get_git_hash(pkg.dir) ~= hash then
             last_ops[pkg.name] = 'update'
+            report('update', 'ok', pkg.name)
             if pkg.run then run_hook(pkg) end
-            report('update', pkg.name, num_pkgs, ok)
         else
-            report('update', pkg.name, num_pkgs)
+            report('update', 'nop', pkg.name)
         end
     end
     call_proc('git', {'pull'}, pkg.dir, post_update)
@@ -162,16 +153,17 @@ local function remove(packdir) -- where packdir = start | opt
     end
 
     for name, dir in pairs(to_rm) do
-        call_proc("rm", {"-r", "-f", dir}, packdir, function(ok) report("remove", name, c, ok) end)
+        call_proc("rm", {"-r", "-f", dir}, packdir, function(ok)
+            report("remove", ok and 'ok' or 'err', name, c)
+        end)
     end
 end
 
-local function list(self)
+local function list()
     local installed = vim.tbl_filter(function(name) return packages[name].exists end, vim.tbl_keys(packages))
     local removed = vim.tbl_filter(function(name) return last_ops[name] == 'remove' end,  vim.tbl_keys(last_ops))
     table.sort(installed)
     table.sort(removed)
-
     local sym_tbl = {install='+', update='*', remove=' '}
     for header, pkgs in pairs{['Installed packages:']=installed, ['Recently removed:']=removed} do
         if #pkgs ~= 0 then
@@ -181,29 +173,26 @@ local function list(self)
             end
         end
     end
-
-    return self
 end
 
 local function register(args)
-    local name, dir
     if type(args) == 'string' then args = {args} end
-
+    local name, src;
     if args.as then
         name = args.as
     elseif args.url then
         name = args.url:gsub('%.git$', ''):match('/([%w-_.]+)$')
-        if not name then print_err('Paq: Failed to parse ' .. args.url) return end
+        src = args.url
     else
         name = args[1]:match('^[%w-]+/([%w-_.]+)$')
-        if not name then print_err('Paq: Failed to parse ' .. args[1]) return end
+        src = args[1]
     end
+    if not name then print_err('Paq: Failed to parse ' .. src) return end
 
-    dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
+    num_pkgs = num_pkgs + 1
+    print(num_pkgs)
 
-    if not packages[name] then
-        num_pkgs = num_pkgs + 1
-    end
+    local dir = paq_dir .. (args.opt and 'opt/' or 'start/') .. name
 
     packages[name] = {
         name   = name,
