@@ -1,17 +1,15 @@
+local vim = require("paq.compat")
 local uv  = vim.loop
-local cmd = vim.api.nvim_command
-local vfn = vim.api.nvim_call_function
 
-cmd('packadd paq-nvim')
-local TESTPATH = vfn('stdpath', {'data'}) .. '/site/pack/test/'
-local paq = require('paq-nvim'):setup{path=TESTPATH}
+local TESTPATH = vim.fn.stdpath("data") .. "/site/pack/test/"
+local paq = require("paq"):setup{path=TESTPATH}
 
 local function test_branch(path, branch)
     local stdout = uv.new_pipe(false)
-    local handle = uv.spawn('git',
+    local handle = uv.spawn("git",
         {
             cwd  = TESTPATH .. path,
-            args = {'branch', '--show-current'}, -- FIXME: This might not work with some versions of git
+            args = {"branch", "--show-current"}, -- FIXME: This might not work with some versions of git
             stdio = {nil, stout, nil},
         },
         function(code)
@@ -31,37 +29,37 @@ end
 
 local function load_pkgs()
     paq {
-        {'badbadnotgood', opt=true};                                 -- should fail to parse
-        {'rust-lang/rust.vim', opt=true};                            -- test opt
-        {'JuliaEditorSupport/julia-vim', as='julia'};                -- test as
+        {"badbadnotgood", opt=true};                                 -- should fail to parse
+        {"rust-lang/rust.vim", opt=true};                            -- test opt
+        {"JuliaEditorSupport/julia-vim", as="julia"};                -- test as
 
-        {as='wiki', url='https://github.com/lervag/wiki.vim'};       -- test url + as
+        {as="wiki", url="https://github.com/lervag/wiki.vim"};       -- test url + as
 
-        {'junegunn/fzf', run=function() vfn('fzf#install', {}) end}; -- test run function
+        {"junegunn/fzf", run=function() vim.fn["fzf#install"]() end}; -- test run function
 
-        {'autozimu/LanguageClient-neovim', branch='next', run='bash install.sh'}; -- branch + run command
+        {"autozimu/LanguageClient-neovim", branch="next", run="bash install.sh"}; -- branch + run command
     }
 end
 
 local function test_install()
     paq.install()
     uv.sleep(5000)
-    assert(uv.fs_scandir(TESTPATH .. 'opt/rust.vim'))
-    assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
-    assert(uv.fs_scandir(TESTPATH .. 'start/wiki'))
-    assert(uv.fs_scandir(TESTPATH .. 'start/fzf'))
-    assert(uv.fs_scandir(TESTPATH .. 'start/LanguageClient-neovim'))
+    assert(uv.fs_scandir(TESTPATH .. "opt/rust.vim"))
+    assert(uv.fs_scandir(TESTPATH .. "start/julia"))
+    assert(uv.fs_scandir(TESTPATH .. "start/wiki"))
+    assert(uv.fs_scandir(TESTPATH .. "start/fzf"))
+    assert(uv.fs_scandir(TESTPATH .. "start/LanguageClient-neovim"))
 
-    --test_branch('start/LanguageClient-neovim', 'next')
+    --test_branch("start/LanguageClient-neovim", "next")
 end
 
 local function test_clean()
     paq {
-        {'JuliaEditorSupport/julia-vim', as='julia'};
-        {'autozimu/LanguageClient-neovim', branch='next', run='bash install.sh'};
+        {"JuliaEditorSupport/julia-vim", as="julia"};
+        {"autozimu/LanguageClient-neovim", branch="next", run="bash install.sh"};
     }
     paq.clean()
-    assert(uv.fs_scandir(TESTPATH .. 'start/julia'))
+    assert(uv.fs_scandir(TESTPATH .. "start/julia"))
 end
 
 local function main()
