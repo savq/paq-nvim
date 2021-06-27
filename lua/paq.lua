@@ -6,9 +6,9 @@ local LOGFILE = vim.fn.stdpath('cache') .. '/paq.log'
 local paq_dir = vim.fn.stdpath('data') .. '/site/pack/paqs/'
 
 local packages = {} -- 'name' = {options} pairs
-local last_ops = {} -- 'name' = 'op' pairs
 local num_pkgs = 0
-local ops; -- DEPRECATE 1.0
+local last_ops = {} -- 'name' = 'op' pairs
+local counters = {}
 
 local msgs = {
     install = {
@@ -29,24 +29,15 @@ local msgs = {
         err = 'failed to run hook for %s (%s)',
     },
 }
-
-local function ops_counter()
-    return {
-        install = {ok=0, err=0, nop=0},
-        update  = {ok=0, err=0, nop=0},
-        remove  = {ok=0, err=0, nop=0},
-    }
-end
-
-ops = ops_counter() -- COMPATIBILTY
+local function Counter(op) counters[op]={ok=0, err=0, nop=0} end
 
 local function update_count(op, result, total)
-    local c, t = ops[op]
+    local c, t = counters[op]
     if not c then return end
     c[result] = c[result] + 1
     t = c[result]
     if c.ok + c.err + c.nop == total then
-        c.ok, c.err, c.nop = 0, 0, 0
+        Counter(op)
         vim.cmd('packloadall! | helptags ALL')
     end
     return t
@@ -123,7 +114,6 @@ local function install(pkg)
     call_proc('git', args, nil, post_install)
 end
 
-
 local function get_git_hash(dir)
     local function first_line(path)
         local file = uv.fs_open(path, 'r', 0x1A4)
@@ -195,14 +185,6 @@ local function list(self)
     return self
 end
 
-local function setup(self, args)
-    assert(type(args) == 'table')
-    if type(args.path) == 'string' then
-        paq_dir = args.path
-    end
-    return self
-end
-
 local function register(args)
     local name, dir
     if type(args) == 'string' then args = {args} end
@@ -234,7 +216,7 @@ local function register(args)
     }
 end
 
-local function set_cmds()
+do
     vim.tbl_map(vim.cmd, {
         [[command! PaqInstall  lua require('paq').install()]],
         [[command! PaqUpdate   lua require('paq').update()]],
@@ -245,24 +227,14 @@ local function set_cmds()
     })
 end
 
-set_cmds() -- COMPATIBILTY
-
-local function init(self, tbl)
-    packages={}
-    num_pkgs=0
-    ops = ops_counter()
-    vim.tbl_map(register, tbl)
-    --set_cmds()
-    return self
-end
-
 return setmetatable({
     paq       = register, -- DEPRECATE 1.0
-    install   = function(self) vim.tbl_map(install, packages) return self end,
-    update    = function(self) vim.tbl_map(update, packages) return self end,
-    clean     = function(self)  remove(paq_dir .. 'start/'); remove(paq_dir .. 'opt/') end,
+    install   = function(self) Counter 'install' vim.tbl_map(install, packages) return self end,
+    update    = function(self) Counter 'update'  vim.tbl_map(update, packages) return self end,
+    clean     = function(self) Counter 'remove'  remove(paq_dir..'start/') remove(paq_dir..'opt/') end,
     list      = list,
-    setup     = setup,
+    setup     = function(self, args) paq_dir = args.path return self end,
     log_open  = function(self) vim.cmd('sp ' .. LOGFILE) return self end,
-    log_clean = function(self) uv.fs_unlink(LOGFILE); print('Paq log file deleted') return self end,
-},{__call=init})
+    log_clean = function(self) uv.fs_unlink(LOGFILE) print('Paq log file deleted') return self end,
+}, {__call    = function(self, tbl) packages={} num_pkgs=0 vim.tbl_map(register, tbl) return self end}
+)
