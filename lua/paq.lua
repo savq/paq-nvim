@@ -102,18 +102,16 @@ local function install(pkg)
 end
 
 local function get_git_hash(dir)
-    local function first_line(path)
-        local file = uv.fs_open(path, "r", 0x1A4)
+    local first_line = function(path)
+        local file = io.open(path)
         if file then
-            local line = uv.fs_read(file, 41, -1) --FIXME: this might fail
-            uv.fs_close(file)
+            local line = file:read()
+            file:close()
             return line
         end
     end
     local head_ref = first_line(dir .. "/.git/HEAD")
-    if head_ref then
-        return first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
-    end
+    return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
 end
 
 local function update(pkg)
