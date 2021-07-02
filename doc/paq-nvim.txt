@@ -50,15 +50,19 @@ To get started with Paq:
 
  1. Import the `paq-nvim` module:
  >
-    local paq = require 'paq-nvim'    -- Module
+    local paq = require("paq")    -- Module
 <
 
  2. Call the paq module with a the list of packages you want to install.
     Each entry in the list is a package repository, for example:
 >
     paq {
-      'savq/paq-nvim';               -- Paq manages itself
-      'lervag/vimtex';
+        "savq/paq-nvim";            -- Paq manages itself
+
+        "neovim/nvim-lspconfig";
+        "nvim-treesitter/nvim-treesitter"
+        "hrsh7th/nvim-compe";
+        "lervag/vimtex";
     }
 <
 
@@ -74,6 +78,7 @@ FUNCTIONS AND COMMANDS                                          *paq-commands*
 The Paq module exports multiple functions. Most of these functions have a
 command alias to make them easier to call on demand. Assuming the module is
 imported as `paq`, the functions are:
+
 
 |paq.__call|                                                      *paq.__call*
 
@@ -133,10 +138,12 @@ imported as `paq`, the functions are:
   This functionality exists mainly to allow testing without altering a
   user's configuration.
 
-|paq.paq|                                                            *paq.paq*
+
+|paq.paq|
 
   The paq function is deprecated. The `paq` module is now a callable that
   takes a list of packages.
+
 
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
@@ -147,9 +154,9 @@ string (see 1 below).
 
 The options are the following:
 
-`1` (or package string)
+`1` (package string)
 
-  The first entry may be a string like `'<GitHub-username>/<repo-name>'`
+  The first entry may be a string like `"<GitHub-username>/<repo-name>"`
   indicating a GitHub repository. The name of the package will be inferred from
   this string, i.e. `<repo-name>`.  If `url` is unset, this option is
   required.
@@ -171,6 +178,22 @@ The options are the following:
   Default value: `nil`
 
 
+`opt`
+  Boolean indicating whether the package is optional or not. If set,
+  the package will be in the optional packages directory. See |packages|
+  and |packadd|.
+
+  Default value: `false`
+
+
+`pin`
+  Boolean indicating whether the package is pinned or not. If a package is
+  pinned then it will be installed, but it will not be updated when calling
+  |PaqUpdate|.
+
+  Default value: `false`
+
+
 `run`
   Either a string or a function to be executed after installing or updating
   a package. Useful for packages that require extra configuration or
@@ -184,9 +207,8 @@ The options are the following:
 
   Note that in nvim 0.5, you can wrap a VimL function like so:
 >
-    paq{ '<name-of-package>', run=vim.fn['<name-of-viml-function>'] }
+    { "<name-of-package>", run=vim.fn["<name-of-viml-function>"] };
 <
-
   Default value: `nil`
 
 
@@ -194,25 +216,17 @@ The options are the following:
   Deprecated. Use the `run` option instead.
 
 
-`opt`
-  Boolean indicating whether the package is optional or not. If set,
-  the package will be in the optional packages directory. See |packages|
-  and |packadd|.
-
-  Default value: `false`
-
-
 `url`
   String indicating the URL of the git repository.
 
   If the `url` is set, Paq will try to infer the name of the repository from
-  it. For example, for `url='htttps://domain.com/some/path/repo-vim.git'` it
+  it. For example, for `url="htttps://domain.com/some/path/repo-vim.git"` it
   would be `repo-vim`.
 
   For convenience, if `url` is unset, Paq will try to find the repository on
   GitHub.com, based on the package string.
 
-  Default value: `'https://github.com/' .. '<GitHub-username>/<repo-name>'`
+  Default value: `"https://github.com/" .. "<GitHub-username>/<repo-name>"`
 
 
 ------------------------------------------------------------------------------
@@ -240,9 +254,9 @@ The language client `coc.nvim` recommends installing the release branch of
 their repository. If we also wanted to install it as an optional package,
 we could call `paq` like:
 >
-    local paq = require 'paq-nvim'
+    local paq = require("paq")
     paq {
-        {'neoclide/coc.nvim', opt=true, branch='release'};
+        {"neoclide/coc.nvim", opt=true, branch="release"};
     }
 <
 
@@ -349,8 +363,8 @@ writing there isn't a way to declare an autocommand using only Lua.
 
 Example:
 >
-    require 'paq-nvim' {
-      {'author/heavy-plugin', opt=true};
+    require("paq") {
+      {"author/heavy-plugin", opt=true};
     }
     vim.cmd [[autocmd Filetype ruby packadd! heavy-plugin]]
 <

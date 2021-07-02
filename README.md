@@ -35,31 +35,24 @@ git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site
 
 ## Usage
 
-In your init.lua, you can write something like:
+In your init.lua, `require` the `"paq"` module with a list of packages, like:
 
 ```lua
-require 'paq-nvim' {
-    -- Add your packages
-    'savq/paq-nvim';                  -- Let Paq manage itself
+require "paq" {
+    "savq/paq-nvim";                  -- Let Paq manage itself
 
-    'neovim/nvim-lspconfig';          -- Mind the semi-colons
-    'nvim-lua/completion-nvim';
-    'nvim-lua/lsp_extensions.nvim';
+    "neovim/nvim-lspconfig";          -- Mind the semi-colons
+    "hrsh7th/nvim-compe";
 
-    {'lervag/vimtex', opt=true};      -- Use braces when passing options
-
-    {'dracula/vim', as='dracula'};    -- Use `as` to alias a package name (here `vim`)
+    {"lervag/vimtex", opt=true};      -- Use braces when passing options
 }
 ```
 
-Then, source your configuration (using `luafile %`) and run `:PaqInstall`.
+Then, source your configuration (using `:source %` or `:luafile %`) and run `:PaqInstall`.
 
-In general, to add packages to Paq's list, call `paq '<gh-username>/<repo>'`
-inside a Lua chunk (or in a separate Lua module).
 
 **NOTICE:**
-Calling the `paq` function per package is deprecated. Users should now pass a
-list to the `'paq-nvim'` module instead.
+Calling the `paq` function per package is deprecated. Users should now pass a list to the `'paq'` module instead.
 
 
 ## Commands
@@ -75,7 +68,8 @@ list to the `'paq-nvim'` module instead.
 |--------|----------|-----------------------------------------------------------|
 | as     | string   | Name to use for the package locally                       |
 | branch | string   | Branch of the repository                                  |
-| opt    | boolean  | Is the package optional?                                  |
+| opt    | boolean  | Optional packages are not loaded on startup               |
+| pin    | boolean  | Pinned packages are not updated                           |
 | run    | string   | Shell command to run after install/update                 |
 | run    | function | Lua function to run after install/update                  |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |
