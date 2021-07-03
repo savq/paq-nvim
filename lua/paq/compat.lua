@@ -42,11 +42,11 @@ function list_extend(dst, src, start, finish)
     return dst
 end
 
-return setmetatable(vim, {__index={
+return setmetatable({
     fn = fn,
     cmd = vim.api.nvim_command,
     tbl_map = tbl_map,
     tbl_keys = tbl_keys,
     tbl_filter = tbl_filter,
     list_extend = list_extend,
-}})
+}, {__index=function(self, key) return vim[key] or self[key] end})
