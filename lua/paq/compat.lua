@@ -9,7 +9,7 @@ local fn = setmetatable({}, {
     end}
 )
 
-function tbl_map(func, t)
+local function tbl_map(func, t)
     local rettab = {}
     for k, v in pairs(t) do
         rettab[k] = func(v)
@@ -17,7 +17,7 @@ function tbl_map(func, t)
     return rettab
 end
 
-function tbl_keys(t)
+local function tbl_keys(t)
     local rettab = {}
     for k, _ in pairs(t) do
         table.insert(rettab, k)
@@ -25,7 +25,7 @@ function tbl_keys(t)
     return rettab
 end
 
-function tbl_filter(func, t)
+local function tbl_filter(func, t)
     local rettab = {}
     for _, v in pairs(t) do
         if func(v) then
@@ -35,7 +35,7 @@ function tbl_filter(func, t)
     return rettab
 end
 
-function list_extend(dst, src, start, finish)
+local function list_extend(dst, src, start, finish)
     for i = start or 1, finish or #src do
         table.insert(dst, src[i])
     end
