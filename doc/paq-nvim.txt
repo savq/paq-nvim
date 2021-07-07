@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-08
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-07-07
 *paq-nvim*
 *paq*
 
@@ -112,6 +112,13 @@ imported as `paq`, the functions are:
                                                                  *:PaqClean*
   Removes packages found on |paq-dir| that aren't listed in your
   configuration.
+
+
+|paq.sync|                                                          *paq.sync*
+                                                                  *:PaqSync*
+  Executes |paq.clean|, |paq.update|, and |paq.install|. Note that all
+  paq operations are performed asynchronously, so messages might be printed
+  out of order.
 
 
 |paq.list|                                                          *paq.list*

@@ -204,9 +204,10 @@ end
 
 do
     vim.tbl_map(vim.cmd, {
-        "command! PaqInstall  lua require('paq').install()",
-        "command! PaqUpdate   lua require('paq').update()",
-        "command! PaqClean    lua require('paq').clean()",
+        "command! PaqInstall  lua require('paq'):install()",
+        "command! PaqUpdate   lua require('paq'):update()",
+        "command! PaqClean    lua require('paq'):clean()",
+        "command! PaqSync     lua require('paq'):sync()",
         "command! PaqList     lua require('paq').list()",
         "command! PaqLogOpen  lua require('paq').log_open()",
         "command! PaqLogClean lua require('paq').log_clean()"
@@ -217,7 +218,8 @@ return setmetatable({
     paq = register, -- DEPRECATE 1.0
     install = function(self) Counter "install" vim.tbl_map(install, packages) return self end,
     update = function(self) Counter "update" vim.tbl_map(update, packages) return self end,
-    clean = function(self) Counter "remove" remove(paq_dir .. "start/") remove(paq_dir .. "opt/") end,
+    clean = function(self) Counter "remove" remove(paq_dir .. "start/") remove(paq_dir .. "opt/") return self end,
+    sync = function(self) self:clean():update():install() return self end,
     list = list,
     setup = function(self, args) paq_dir = args.path return self end,
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,

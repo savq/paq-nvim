@@ -60,6 +60,7 @@ Calling the `paq` function per package is deprecated. Users should now pass a li
 - `PaqInstall`: Install all packages listed in your configuration.
 - `PaqUpdate`: Update all packages already on your system (it won't implicitly install them).
 - `PaqClean`: Remove all packages (in Paq's directory) that aren't listed on your configuration.
+- `PaqSync`: Execute the three operations listed above.
 
 
 ## Options
