@@ -38,7 +38,7 @@ local function update_count(op, result, total)
     t = c[result]
     if c.ok + c.err + c.nop == total then
         Counter(op)
-        vim.cmd("packloadall! | helptags ALL")
+        vim.cmd("packloadall! | silent! helptags ALL")
     end
     return t
 end
