@@ -2,9 +2,11 @@ local vim = vim.api.nvim_call_function("has", {"nvim-0.5"}) and vim or require("
 local uv = vim.loop
 local print_err = vim.api.nvim_err_writeln
 
+local cfg = {
+    paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
+    verbose = true,
+}
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
-local paq_dir = vim.fn.stdpath("data") .. "/site/pack/paqs/"
-
 local packages = {} -- 'name' = {options} pairs
 local num_pkgs = 0
 local last_ops = {} -- 'name' = 'op' pairs
@@ -31,7 +33,7 @@ local messages = {
 
 local function Counter(op) counters[op] = {ok=0, err=0, nop=0} end
 
-local function update_count(op, result, total)
+local function update_count(op, result, _, total)
     local c, t = counters[op]
     if not c then return end
     c[result] = c[result] + 1
@@ -45,7 +47,7 @@ end
 
 local function report(op, result, name, total)
     local total = total or num_pkgs
-    local cur = update_count(op, result, total)
+    local cur = update_count(op, result, nil, total)
     local count = cur and string.format("%d/%d", cur, total) or ""
     local msg = messages[op][result]
     local p = result == "err" and print_err or print
@@ -86,7 +88,7 @@ local function run_hook(pkg)
 end
 
 local function install(pkg)
-    if pkg.exists then return update_count("install", "nop", pkg.name) end
+    if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
     local args = pkg.branch
         and {"clone", pkg.url, "--depth=1", "-b", pkg.branch, pkg.dir}
         or {"clone", pkg.url, "--depth=1", pkg.dir}
@@ -115,7 +117,7 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists or pkg.pin then return update_count("update", "nop", pkg.name) end
+    if not pkg.exists or pkg.pin then return update_count("update", "nop", nil, num_pkgs) end
     local hash = get_git_hash(pkg.dir)
     local post_update = function(ok)
         if not ok then
@@ -125,7 +127,7 @@ local function update(pkg)
             report("update", "ok", pkg.name)
             if pkg.run then run_hook(pkg) end
         else
-            report("update", "nop", pkg.name)
+            (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
         end
     end
     call_proc("git", {"pull"}, pkg.dir, post_update)
@@ -188,7 +190,7 @@ local function register(args)
         return
     end
 
-    local dir = paq_dir .. (args.opt and "opt/" or "start/") .. name
+    local dir = cfg.paqdir .. (args.opt and "opt/" or "start/") .. name
 
     packages[name] = {
         name = name,
@@ -218,10 +220,10 @@ return setmetatable({
     paq = register, -- DEPRECATE 1.0
     install = function(self) Counter "install" vim.tbl_map(install, packages) return self end,
     update = function(self) Counter "update" vim.tbl_map(update, packages) return self end,
-    clean = function(self) Counter "remove" remove(paq_dir .. "start/") remove(paq_dir .. "opt/") return self end,
+    clean = function(self) Counter "remove" remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
     sync = function(self) self:clean():update():install() return self end,
     list = list,
-    setup = function(self, args) paq_dir = args.path return self end,
+    setup = function(self, args) for k,v in pairs(args) do cfg[k] = v end return self end,
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
     log_clean = function(self) uv.fs_unlink(LOGFILE) print("Paq log file deleted") return self end,
 }, {__call = function(self, tbl) packages = {} num_pkgs = 0 vim.tbl_map(register, tbl) return self end}
