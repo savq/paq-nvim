@@ -1,4 +1,4 @@
-local vim = require("paq.compat")
+local vim = vim.api.nvim_call_function("has", {"nvim-0.5"}) and vim or require("paq.compat")
 local uv = vim.loop
 local print_err = vim.api.nvim_err_writeln
 
