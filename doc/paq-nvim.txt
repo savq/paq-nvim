@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-06-08
+*paq-nvim.txt*  Package manager for Neovim v0.4.4      Last change: 2021-07-07
 *paq-nvim*
 *paq*
 
@@ -114,6 +114,13 @@ imported as `paq`, the functions are:
   configuration.
 
 
+|paq.sync|                                                          *paq.sync*
+                                                                  *:PaqSync*
+  Executes |paq.clean|, |paq.update|, and |paq.install|. Note that all
+  paq operations are performed asynchronously, so messages might be printed
+  out of order.
+
+
 |paq.list|                                                          *paq.list*
                                                                   *:PaqList*
   Lists installed packages as well as packages that were recently removed.
@@ -131,13 +138,35 @@ imported as `paq`, the functions are:
   Deletes the |paq-log| file.
 
 
-|paq.setup|                                                        *paq.setup*
+|paq.setup|                                                        *paq:setup*
 
-  Configures specific global behavior. It takes as single input a table,
-  which can have a key `path` to overwrite the default value for |paq-dir|.
-  This functionality exists mainly to allow testing without altering a
-  user's configuration.
+  Method to configure specific global behavior.  It can take a table with the
+  following keys:
 
+    `path`
+    String that determines where Paq should install packages. It overwrites
+    the default value for |paq-dir|. `path` should still be a valid |packages|
+    directory, Paq won't modify the 'runtimepath'. This option exists mainly
+    to allow testing without altering a user's configuration.
+
+    Default value: |paq-dir|
+
+    `verbose`
+    Boolean that determines whether paq should print `(up-to-date) pkg` for
+    packages that were not updated.
+
+    Default value: `true`
+
+  Note that unlike most Lua plugins, paq.setup is a method, not a function.
+  This allows chaining it with the list of packages without needing to
+  bind `"paq"` locally, for example:
+>
+    require("paq"):setup({verbose=false}) {
+        "savq/paq-nvim";
+        "neovim/nvim-lspconfig";
+        "nvim-treesitter/nvim-treesitter"
+    }
+<
 
 |paq.paq|
 
