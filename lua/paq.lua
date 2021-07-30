@@ -31,6 +31,21 @@ local messages = {
     }
 }
 
+-- VVV modifications below VVV
+
+--[[
+    Run a process, read it's output and "somehow" get it's return code
+--]]
+function repo_exists(repo)
+    local command = 'curl --head --silent --fail https://github.com/' .. repo .. ' > /dev/null'
+    local process = io.popen(command)
+    local output = process:read('*all')
+    local rc = process:close()
+    return rc ~= nil and true or false
+end
+
+-- ^^^ modifications above ^^^
+
 local function Counter(op) counters[op] = {ok=0, err=0, nop=0} end
 
 local function update_count(op, result, _, total)
@@ -100,7 +115,8 @@ local function install(pkg)
         end
         report("install", ok and "ok" or "err", pkg.name)
     end
-    call_proc("git", args, nil, post_install)
+    local repo_is_up = repo_exists('henriquehbr/svelte-typewriter')
+    repo_is_up and call_proc("git", args, nil, post_install) or report("install", "err", pkg.name)
 end
 
 local function get_git_hash(dir)
