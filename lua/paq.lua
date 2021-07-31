@@ -36,12 +36,21 @@ local messages = {
 --[[
     Run a process, read it's output and "somehow" get it's return code
 --]]
-function repo_exists(repo)
-    local command = 'curl --head --silent --fail https://github.com/' .. repo .. ' > /dev/null'
+local function url_exists(url)
+    local command = 'curl -L --head --silent --fail ' .. url .. ' > /dev/null ; echo $?'
+
+    -- runs command
     local process = io.popen(command)
-    local output = process:read('*all')
-    local rc = process:close()
-    return rc ~= nil and true or false
+
+    -- goes to the end of the output
+    process:seek('end')
+
+    -- trim output
+    local exit_code = process:read('*a'):gsub('%s+', '')
+
+    process:close()
+
+    return tonumber(exit_code) == 0 and true or false
 end
 
 -- ^^^ modifications above ^^^
@@ -115,8 +124,13 @@ local function install(pkg)
         end
         report("install", ok and "ok" or "err", pkg.name)
     end
-    local repo_is_up = repo_exists('henriquehbr/svelte-typewriter')
-    repo_is_up and call_proc("git", args, nil, post_install) or report("install", "err", pkg.name)
+    -- VVV modifications below VVV
+    if url_exists(pkg.url) then
+        call_proc("git", args, nil, post_install)
+    else
+        report("install", "err", pkg.name)
+    end
+    -- ^^^ modification below ^^^
 end
 
 local function get_git_hash(dir)
