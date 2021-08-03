@@ -31,8 +31,6 @@ local messages = {
     }
 }
 
--- VVV modifications below VVV
-
 --[[
     Run a process, read it's output and "somehow" get it's return code
 --]]
@@ -52,8 +50,6 @@ local function url_exists(url)
 
     return tonumber(exit_code) == 0 and true or false
 end
-
--- ^^^ modifications above ^^^
 
 local function Counter(op) counters[op] = {ok=0, err=0, nop=0} end
 
@@ -124,13 +120,11 @@ local function install(pkg)
         end
         report("install", ok and "ok" or "err", pkg.name)
     end
-    -- VVV modifications below VVV
     if url_exists(pkg.url) then
         call_proc("git", args, nil, post_install)
     else
         report("install", "err", pkg.name)
     end
-    -- ^^^ modification below ^^^
 end
 
 local function get_git_hash(dir)
