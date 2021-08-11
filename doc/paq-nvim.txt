@@ -206,6 +206,11 @@ The options are the following:
 
   Default value: `nil`
 
+`depth`
+  Integer that contains the depth to use when git cloning.
+
+  Default value: 1
+
 
 `opt`
   Boolean indicating whether the package is optional or not. If set,

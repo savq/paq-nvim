@@ -87,11 +87,37 @@ local function run_hook(pkg)
     end
 end
 
+local function get_git_clone_args(pkg)
+    local args_to_use={}
+    local depth_to_use
+    if pkg.depth ==  nil then
+        depth_to_use = "--depth=1"
+    elseif pkg.depth < 1 then
+        depth_to_use = nil
+    else
+        depth_to_use = string.format("--depth=%d",pkg.depth)
+    end
+
+    if pkg.branch ~= nil then
+        if depth_to_use ~= nil then
+            args_to_use = {"clone", pkg.url, depth_to_use, "-b", pkg.branch, pkg.dir}
+        else
+            args_to_use = {"clone", pkg.url "-b", pkg.branch, pkg.dir}
+        end
+    else
+        if depth_to_use ~= nil then
+            args_to_use = {"clone", pkg.url, depth_to_use, pkg.dir}
+        else
+            args_to_use ={"clone", pkg.url, pkg.dir}
+        end
+    end
+
+    return args_to_use
+end
+
 local function install(pkg)
     if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
-    local args = pkg.branch
-        and {"clone", pkg.url, "--depth=1", "-b", pkg.branch, pkg.dir}
-        or {"clone", pkg.url, "--depth=1", pkg.dir}
+    local args = get_git_clone_args(pkg)
     local post_install = function(ok)
         if ok then
             pkg.exists = true
@@ -200,6 +226,7 @@ local function register(args)
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
         pin = args.pin,
+        depth = args.depth,
         run = args.run or args.hook, -- DEPRECATE 1.0
         url = args.url or "https://github.com/" .. args[1] .. ".git"
     }
