@@ -149,10 +149,12 @@ local function remove(packdir)
         end
     end
     for name, dir in pairs(to_rm) do
-        call_proc("rm", {"-r", "-f", dir}, packdir, function(ok)
-            last_ops[name] = "remove"
-            report("remove", ok and "ok" or "err", name, c)
-        end)
+        if name ~= "paq-nvim" then
+            call_proc("rm", {"-r", "-f", dir}, packdir, function(ok)
+                last_ops[name] = "remove"
+                report("remove", ok and "ok" or "err", name, c)
+            end)
+        end
     end
 end
 
