@@ -37,7 +37,7 @@ git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site
 Add the following snippet before your first usage of `paq-nvim` if you want to automatically
 install `paq-nvim`.
 
-```
+```lua
 local fn = vim.fn
 
 local install_path = fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
