@@ -156,6 +156,7 @@ local function remove(packdir)
     end
 end
 
+
 local function list()
     local installed = vim.tbl_filter(function(name) return packages[name].exists end, vim.tbl_keys(packages))
     local removed = vim.tbl_filter(function(name) return last_ops[name] == "remove" end, vim.tbl_keys(last_ops))
@@ -209,6 +210,7 @@ do
         "command! PaqInstall  lua require('paq'):install()",
         "command! PaqUpdate   lua require('paq'):update()",
         "command! PaqClean    lua require('paq'):clean()",
+        "command! PaqRunHooks lua require('paq'):run_hooks()",
         "command! PaqSync     lua require('paq'):sync()",
         "command! PaqList     lua require('paq').list()",
         "command! PaqLogOpen  lua require('paq').log_open()",
@@ -222,6 +224,7 @@ return setmetatable({
     update = function(self) Counter "update" vim.tbl_map(update, packages) return self end,
     clean = function(self) Counter "remove" remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
     sync = function(self) self:clean():update():install() return self end,
+    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
     list = list,
     setup = function(self, args) for k,v in pairs(args) do cfg[k] = v end return self end,
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
