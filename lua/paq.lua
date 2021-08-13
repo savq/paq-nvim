@@ -61,7 +61,7 @@ local function call_proc(process, args, cwd, cb)
     stderr:open(log)
     handle = uv.spawn(
         process,
-        {args = args, cwd = cwd, stdio = {nil, nil, stderr}},
+        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={'GIT_TERMINAL_PROMPT=0'}},
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
