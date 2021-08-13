@@ -13,7 +13,6 @@ CONTENTS                                                        *paq-contents*
   Usage                                                  |paq-usage|
   Functions and Commands                                 |paq-commands|
   Package options                                        |paq-options|
-  Commands                                               |paq-commands|
   Paq directory                                          |paq-dir|
   Paq log                                                |paq-log|
   Troubleshooting                                        |paq-troubleshooting|
@@ -99,13 +98,16 @@ imported as `paq`, the functions are:
 |paq.install|                                                    *paq.install*
                                                                *:PaqInstall*
   Installs all packages listed on your configuration, if a package is already
-  installed, the function ignores it.
+  installed, the function ignores it. If a package has a `run` argument, it'll
+  be executed after a package is installed.
 
 
 |paq.update|                                                      *paq.update*
                                                                 *:PaqUpdate*
   Updates the installed packages listed on your configuration. If a package
   hasn't been installed with |PaqInstall|, the function ignores it.
+  If a package had changes and it has a `run` argument, then the `run`
+  argument will be executed.
 
 
 |paq.clean|                                                        *paq.clean*
@@ -119,6 +121,13 @@ imported as `paq`, the functions are:
   Executes |paq.clean|, |paq.update|, and |paq.install|. Note that all
   paq operations are performed asynchronously, so messages might be printed
   out of order.
+
+
+|paq.run_hooks|                                                *paq.run_hooks*
+                                                              *:PaqRunHooks*
+  Executes all `run` hooks (functions and shell commands). This can be used
+  when a hook fails, to run a hook without a package having changed, or for
+  other debugging purposes.
 
 
 |paq.list|                                                          *paq.list*
@@ -138,7 +147,7 @@ imported as `paq`, the functions are:
   Deletes the |paq-log| file.
 
 
-|paq.setup|                                                        *paq:setup*
+|paq:setup|                                                        *paq:setup*
 
   Method to configure specific global behavior.  It can take a table with the
   following keys:
@@ -157,7 +166,7 @@ imported as `paq`, the functions are:
 
     Default value: `true`
 
-  Note that unlike most Lua plugins, paq.setup is a method, not a function.
+  Note that unlike most Lua plugins, paq:setup is a method, not a function.
   This allows chaining it with the list of packages without needing to
   bind `"paq"` locally, for example:
 >
