@@ -89,7 +89,7 @@ end
 
 local function install(pkg)
     if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
-    local args = {"clone", pkg.url, "--depth=1", "--shallow-submodules"}
+    local args = {"clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules"}
     if pkg.branch then vim.list_extend(args, {"-b", pkg.branch}) end
     vim.list_extend(args, {pkg.dir})
     local post_install = function(ok)
