@@ -26,7 +26,7 @@ local messages = {
         err = "failed to remove %s",
     },
     hook = {
-        ok = "ran hook for %s (%s)",
+        ok = "ran hook for %s",
         err = "failed to run hook for %s",
     }
 }
@@ -51,7 +51,7 @@ local function report(op, result, name, total)
     local count = cur and string.format("%d/%d", cur, total) or ""
     local msg = messages[op][result]
     local p = result == "err" and print_err or print
-    p(string.format("Paq [%s] " .. msg, count, name, hook))
+    p(string.format("Paq [%s] " .. msg, count, name))
 end
 
 local function call_proc(process, args, cwd, cb)
