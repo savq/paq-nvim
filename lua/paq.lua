@@ -89,9 +89,9 @@ end
 
 local function install(pkg)
     if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
-    local args = pkg.branch
-        and {"clone", pkg.url, "--depth=1", "-b", pkg.branch, pkg.dir}
-        or {"clone", pkg.url, "--depth=1", pkg.dir}
+    local args = {"clone", pkg.url, "--depth=1", "--shallow-submodules"}
+    if pkg.branch then vim.list_extend(args, {"-b", pkg.branch}) end
+    vim.list_extend(args, {pkg.dir})
     local post_install = function(ok)
         if ok then
             pkg.exists = true
@@ -130,7 +130,7 @@ local function update(pkg)
             (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
         end
     end
-    call_proc("git", {"pull"}, pkg.dir, post_update)
+    call_proc("git", {"pull", "--recurse-submodules", "--update-shallow"}, pkg.dir, post_update)
 end
 
 local function remove(packdir)
