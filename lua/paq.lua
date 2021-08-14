@@ -26,7 +26,7 @@ local messages = {
         err = "failed to remove %s",
     },
     hook = {
-        ok = "ran hook for %s (%s)",
+        ok = "ran hook for %s",
         err = "failed to run hook for %s",
     }
 }
@@ -51,7 +51,7 @@ local function report(op, result, name, total)
     local count = cur and string.format("%d/%d", cur, total) or ""
     local msg = messages[op][result]
     local p = result == "err" and print_err or print
-    p(string.format("Paq [%s] " .. msg, count, name, hook))
+    p(string.format("Paq [%s] " .. msg, count, name))
 end
 
 local function call_proc(process, args, cwd, cb)
@@ -61,7 +61,7 @@ local function call_proc(process, args, cwd, cb)
     stderr:open(log)
     handle = uv.spawn(
         process,
-        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={'GIT_TERMINAL_PROMPT=0'}},
+        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={"GIT_TERMINAL_PROMPT=0"}},
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -89,9 +89,9 @@ end
 
 local function install(pkg)
     if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
-    local args = pkg.branch
-        and {"clone", pkg.url, "--depth=1", "-b", pkg.branch, pkg.dir}
-        or {"clone", pkg.url, "--depth=1", pkg.dir}
+    local args = {"clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules"}
+    if pkg.branch then vim.list_extend(args, {"-b", pkg.branch}) end
+    vim.list_extend(args, {pkg.dir})
     local post_install = function(ok)
         if ok then
             pkg.exists = true
@@ -130,7 +130,7 @@ local function update(pkg)
             (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
         end
     end
-    call_proc("git", {"pull"}, pkg.dir, post_update)
+    call_proc("git", {"pull", "--recurse-submodules", "--update-shallow"}, pkg.dir, post_update)
 end
 
 local function remove(packdir)
