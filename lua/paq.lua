@@ -102,7 +102,7 @@ local function get_git_clone_args(pkg)
         if depth_to_use ~= nil then
             args_to_use = {"clone", pkg.url, depth_to_use, "-b", pkg.branch, pkg.dir}
         else
-            args_to_use = {"clone", pkg.url "-b", pkg.branch, pkg.dir}
+            args_to_use = {"clone", pkg.url, "-b", pkg.branch, pkg.dir}
         end
     else
         if depth_to_use ~= nil then
