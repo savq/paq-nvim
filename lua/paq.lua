@@ -150,7 +150,8 @@ local function remove(packdir)
     end
     for name, dir in pairs(to_rm) do
         if name ~= "paq-nvim" then
-            vim.fn.delete(dir,"rf")
+            local ok = vim.fn.delete(dir, "rf")
+            report("remove", ok == 0 and "ok" or "err", name, c)
         end
     end
 end
