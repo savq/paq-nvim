@@ -160,6 +160,13 @@ imported as `paq`, the functions are:
 
     Default value: |paq-dir|
 
+    `http_proxy`
+    `https_proxy`
+    String that determines proxy environments that Paq used to fecth plugin
+    resources.
+
+    Default value: `""`
+
     `verbose`
     Boolean that determines whether paq should print `(up-to-date) pkg` for
     packages that were not updated.
@@ -170,7 +177,10 @@ imported as `paq`, the functions are:
   This allows chaining it with the list of packages without needing to
   bind `"paq"` locally, for example:
 >
-    require("paq"):setup({verbose=false}) {
+    require("paq"):setup({
+        http_proxy="http://proxy.example.com:8080",
+        verbose=false
+    }) {
         "savq/paq-nvim";
         "neovim/nvim-lspconfig";
         "nvim-treesitter/nvim-treesitter"

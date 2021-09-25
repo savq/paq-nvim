@@ -4,6 +4,8 @@ local print_err = vim.api.nvim_err_writeln
 
 local cfg = {
     paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
+    http_proxy = "",
+    https_proxy = "",
     verbose = true,
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
@@ -61,7 +63,10 @@ local function call_proc(process, args, cwd, cb)
     stderr:open(log)
     handle = uv.spawn(
         process,
-        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={"GIT_TERMINAL_PROMPT=0"}},
+        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={
+          "GIT_TERMINAL_PROMPT=0",
+          "http_proxy=" .. cfg.http_proxy,
+          "https_proxy=" .. cfg.https_proxy}},
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
