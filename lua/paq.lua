@@ -26,7 +26,7 @@ local messages = {
         err = "failed to remove %s",
     },
     hook = {
-        ok = "ran hook for %s (%s)",
+        ok = "ran hook for %s",
         err = "failed to run hook for %s",
     }
 }
@@ -51,7 +51,7 @@ local function report(op, result, name, total)
     local count = cur and string.format("%d/%d", cur, total) or ""
     local msg = messages[op][result]
     local p = result == "err" and print_err or print
-    p(string.format("Paq [%s] " .. msg, count, name, hook))
+    p(string.format("Paq [%s] " .. msg, count, name))
 end
 
 local function call_proc(process, args, cwd, cb)
@@ -61,7 +61,7 @@ local function call_proc(process, args, cwd, cb)
     stderr:open(log)
     handle = uv.spawn(
         process,
-        {args = args, cwd = cwd, stdio = {nil, nil, stderr}},
+        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={"GIT_TERMINAL_PROMPT=0"}},
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -156,7 +156,7 @@ local function update(pkg)
             (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
         end
     end
-    call_proc("git", {"pull"}, pkg.dir, post_update)
+    call_proc("git", {"pull", "--recurse-submodules", "--update-shallow"}, pkg.dir, post_update)
 end
 
 local function remove(packdir)
@@ -176,10 +176,8 @@ local function remove(packdir)
     end
     for name, dir in pairs(to_rm) do
         if name ~= "paq-nvim" then
-            call_proc("rm", {"-r", "-f", dir}, packdir, function(ok)
-                last_ops[name] = "remove"
-                report("remove", ok and "ok" or "err", name, c)
-            end)
+            local ok = vim.fn.delete(dir, "rf")
+            report("remove", ok == 0 and "ok" or "err", name, c)
         end
     end
 end
@@ -238,6 +236,7 @@ do
         "command! PaqInstall  lua require('paq'):install()",
         "command! PaqUpdate   lua require('paq'):update()",
         "command! PaqClean    lua require('paq'):clean()",
+        "command! PaqRunHooks lua require('paq'):run_hooks()",
         "command! PaqSync     lua require('paq'):sync()",
         "command! PaqList     lua require('paq').list()",
         "command! PaqLogOpen  lua require('paq').log_open()",
@@ -251,6 +250,7 @@ return setmetatable({
     update = function(self) Counter "update" vim.tbl_map(update, packages) return self end,
     clean = function(self) Counter "remove" remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
     sync = function(self) self:clean():update():install() return self end,
+    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
     list = list,
     setup = function(self, args) for k,v in pairs(args) do cfg[k] = v end return self end,
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
