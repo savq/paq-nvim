@@ -1,4 +1,4 @@
-local vim = vim.api.nvim_call_function("has", {"nvim-0.5"}) and vim or require("paq.compat")
+local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")
 local uv = vim.loop
 local print_err = vim.api.nvim_err_writeln
 
@@ -28,14 +28,18 @@ local messages = {
     hook = {
         ok = "ran hook for %s",
         err = "failed to run hook for %s",
-    }
+    },
 }
 
-local function Counter(op) counters[op] = {ok=0, err=0, nop=0} end
+local function Counter(op)
+    counters[op] = { ok = 0, err = 0, nop = 0 }
+end
 
 local function update_count(op, result, _, total)
     local c, t = counters[op]
-    if not c then return end
+    if not c then
+        return
+    end
     c[result] = c[result] + 1
     t = c[result]
     if c.ok + c.err + c.nop == total then
@@ -61,7 +65,7 @@ local function call_proc(process, args, cwd, cb)
     stderr:open(log)
     handle = uv.spawn(
         process,
-        {args=args, cwd=cwd, stdio={nil, nil, stderr}, env={"GIT_TERMINAL_PROMPT=0"}},
+        { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = { "GIT_TERMINAL_PROMPT=0" } },
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -82,21 +86,29 @@ local function run_hook(pkg)
         for word in pkg.run:gmatch("%S+") do
             table.insert(args, word)
         end
-        local post_hook = function(ok) report("hook", ok and "ok" or "err", pkg.name) end
+        local post_hook = function(ok)
+            report("hook", ok and "ok" or "err", pkg.name)
+        end
         call_proc(table.remove(args, 1), args, pkg.dir, post_hook)
     end
 end
 
 local function install(pkg)
-    if pkg.exists then return update_count("install", "nop", nil, num_pkgs) end
-    local args = {"clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules"}
-    if pkg.branch then vim.list_extend(args, {"-b", pkg.branch}) end
-    vim.list_extend(args, {pkg.dir})
+    if pkg.exists then
+        return update_count("install", "nop", nil, num_pkgs)
+    end
+    local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
+    if pkg.branch then
+        vim.list_extend(args, { "-b", pkg.branch })
+    end
+    vim.list_extend(args, { pkg.dir })
     local post_install = function(ok)
         if ok then
             pkg.exists = true
             last_ops[pkg.name] = "install"
-            if pkg.run then run_hook(pkg) end
+            if pkg.run then
+                run_hook(pkg)
+            end
         end
         report("install", ok and "ok" or "err", pkg.name)
     end
@@ -117,7 +129,9 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists or pkg.pin then return update_count("update", "nop", nil, num_pkgs) end
+    if not pkg.exists or pkg.pin then
+        return update_count("update", "nop", nil, num_pkgs)
+    end
     local hash = get_git_hash(pkg.dir)
     local post_update = function(ok)
         if not ok then
@@ -125,12 +139,14 @@ local function update(pkg)
         elseif get_git_hash(pkg.dir) ~= hash then
             last_ops[pkg.name] = "update"
             report("update", "ok", pkg.name)
-            if pkg.run then run_hook(pkg) end
+            if pkg.run then
+                run_hook(pkg)
+            end
         else
             (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
         end
     end
-    call_proc("git", {"pull", "--recurse-submodules", "--update-shallow"}, pkg.dir, post_update)
+    call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, post_update)
 end
 
 local function remove(packdir)
@@ -140,7 +156,9 @@ local function remove(packdir)
     local handle = uv.fs_scandir(packdir)
     while handle do
         name = uv.fs_scandir_next(handle)
-        if not name then break end
+        if not name then
+            break
+        end
         pkg = packages[name]
         dir = packdir .. name
         if not (pkg and pkg.dir == dir) then
@@ -157,12 +175,18 @@ local function remove(packdir)
 end
 
 local function list()
-    local installed = vim.tbl_filter(function(name) return packages[name].exists end, vim.tbl_keys(packages))
-    local removed = vim.tbl_filter(function(name) return last_ops[name] == "remove" end, vim.tbl_keys(last_ops))
+    local installed = vim.tbl_filter(function(name)
+        return packages[name].exists
+    end, vim.tbl_keys(packages))
+    local removed = vim.tbl_filter(function(name)
+        return last_ops[name] == "remove"
+    end, vim.tbl_keys(
+        last_ops
+    ))
     table.sort(installed)
     table.sort(removed)
-    local sym_tbl = {install = "+", update = "*", remove = " "}
-    for header, pkgs in pairs {["Installed packages:"] = installed, ["Recently removed:"] = removed} do
+    local sym_tbl = { install = "+", update = "*", remove = " " }
+    for header, pkgs in pairs({ ["Installed packages:"] = installed, ["Recently removed:"] = removed }) do
         if #pkgs ~= 0 then
             print(header)
             for _, name in ipairs(pkgs) do
@@ -173,7 +197,9 @@ local function list()
 end
 
 local function register(args)
-    if type(args) == "string" then args = {args} end
+    if type(args) == "string" then
+        args = { args }
+    end
     local name, src
     if args.as then
         name = args.as
@@ -199,7 +225,7 @@ local function register(args)
         exists = vim.fn.isdirectory(dir) ~= 0,
         pin = args.pin,
         run = args.run or args.hook, -- DEPRECATE 1.0
-        url = args.url or "https://github.com/" .. args[1] .. ".git"
+        url = args.url or "https://github.com/" .. args[1] .. ".git",
     }
     num_pkgs = num_pkgs + 1
 end
@@ -213,10 +239,11 @@ do
         "command! PaqSync     lua require('paq'):sync()",
         "command! PaqList     lua require('paq').list()",
         "command! PaqLogOpen  lua require('paq').log_open()",
-        "command! PaqLogClean lua require('paq').log_clean()"
+        "command! PaqLogClean lua require('paq').log_clean()",
     })
 end
 
+-- stylua: ignore
 return setmetatable({
     paq = register, -- DEPRECATE 1.0
     install = function(self) Counter "install" vim.tbl_map(install, packages) return self end,

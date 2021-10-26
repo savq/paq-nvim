@@ -4,10 +4,10 @@
 local fn = setmetatable({}, {
     __index = function(_, key)
         return function(...)
-            return vim.api.nvim_call_function(key, {...})
+            return vim.api.nvim_call_function(key, { ... })
         end
-    end}
-)
+    end,
+})
 
 local function tbl_map(func, t)
     local rettab = {}
@@ -49,4 +49,8 @@ return setmetatable({
     tbl_keys = tbl_keys,
     tbl_filter = tbl_filter,
     list_extend = list_extend,
-}, {__index=function(self, key) return vim[key] or self[key] end})
+}, {
+    __index = function(self, key)
+        return vim[key] or self[key]
+    end,
+})
