@@ -1,9 +1,26 @@
-local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")
+--[[ TODOS:
+-- use coroutines to simplify logic
+    -- refactor
+    -- support for user auto-command #71
+-- deprecate nvim 0.4
+    -- use vim.notify #65
+-- fix paq-clean regression (weird path in vimtex tests)
+-- extend instead of replace `env` in spawn #77
+-- Respond all other issues
+-- deprecate logfile?
+-- ]]
+
 local uv = vim.loop
+
+-- TODO(cleanup): Deprecate
+local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")
+
+-- TODO(notify): Replace with vim.notify
 local print_err = vim.api.nvim_err_writeln
 
 local cfg = {
     paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
+    -- TODO(notify): Default to verbose=false
     verbose = true,
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
@@ -63,6 +80,7 @@ local function call_proc(process, args, cwd, cb)
     log = uv.fs_open(LOGFILE, "a+", 0x1A4)
     stderr = uv.new_pipe(false)
     stderr:open(log)
+    -- TODO: There's no error handling here!
     handle = uv.spawn(
         process,
         { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = { "GIT_TERMINAL_PROMPT=0" } },
@@ -224,7 +242,7 @@ local function register(args)
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
         pin = args.pin,
-        run = args.run or args.hook, -- DEPRECATE 1.0
+        run = args.run or args.hook, -- TODO(cleanup): remove `hook` option
         url = args.url or "https://github.com/" .. args[1] .. ".git",
     }
     num_pkgs = num_pkgs + 1
@@ -245,15 +263,16 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    paq = register, -- DEPRECATE 1.0
-    install = function(self) Counter "install" vim.tbl_map(install, packages) return self end,
-    update = function(self) Counter "update" vim.tbl_map(update, packages) return self end,
-    clean = function(self) Counter "remove" remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
+    -- TODO: deprecate. not urgent
+    paq = register,
+    install = function(self) Counter("install") vim.tbl_map(install, packages) return self end,
+    update = function(self) Counter("update") vim.tbl_map(update, packages) return self end,
+    clean = function(self) Counter("remove") remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
     sync = function(self) self:clean():update():install() return self end,
     run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
-    list = list,
-    setup = function(self, args) for k,v in pairs(args) do cfg[k] = v end return self end,
+    list = list, setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    -- TODO: deprecate logs. not urgent
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
     log_clean = function(self) uv.fs_unlink(LOGFILE) print("Paq log file deleted") return self end,
-}, {__call = function(self, tbl) packages = {} num_pkgs = 0 vim.tbl_map(register, tbl) return self end}
-)
+}, { __call = function(self, tbl) packages = {} num_pkgs = 0 vim.tbl_map(register, tbl) return self end,
+})
