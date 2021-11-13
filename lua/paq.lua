@@ -111,7 +111,7 @@ local function run_hook(pkg)
     end
 end
 
-local function install(pkg)
+local function clone(pkg)
     if pkg.exists then
         return update_count("install", "nop", nil, num_pkgs)
     end
@@ -146,7 +146,7 @@ local function get_git_hash(dir)
     return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
 end
 
-local function update(pkg)
+local function pull(pkg)
     if not pkg.exists or pkg.pin then
         return update_count("update", "nop", nil, num_pkgs)
     end
@@ -167,27 +167,29 @@ local function update(pkg)
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, post_update)
 end
 
-local function remove(packdir)
-    local name, dir, pkg
-    local to_rm = {}
-    local c = 0
+local function check_rm(packdir)
+    local to_remove = {}
     local handle = uv.fs_scandir(packdir)
     while handle do
-        name = uv.fs_scandir_next(handle)
+        local name = uv.fs_scandir_next(handle)
         if not name then
             break
         end
-        pkg = packages[name]
-        dir = packdir .. name
+        local pkg = packages[name]
+        local dir = packdir .. name
         if not (pkg and pkg.dir == dir) then
-            to_rm[name] = dir
-            c = c + 1
+            table.insert(to_remove, {name=name, dir=dir})
         end
     end
-    for name, dir in pairs(to_rm) do
-        if name ~= "paq-nvim" then
-            local ok = vim.fn.delete(dir, "rf")
-            report("remove", ok == 0 and "ok" or "err", name, c)
+    return to_remove
+end
+
+local function remove(to_remove)
+    for _, p in pairs(to_remove) do
+        if p.name ~= "paq-nvim" then
+            -- TODO(regresion): This fails for weird paths
+            local ok = vim.fn.delete(p.dir, "rf")
+            report("remove", ok == 0 and "ok" or "err", p.name, #to_remove)
         end
     end
 end
@@ -261,15 +263,39 @@ do
     })
 end
 
+local function install(self)
+    Counter("install")
+    to_install = vim.tbl_filter(function(pkg) return not pkg.exists end, packages)
+    for _, pkg in pairs(to_install) do
+        clone(pkg)
+    end
+    return self
+end
+
+local function update(self)
+    Counter("update")
+    for _, pkg in pairs(packages) do
+        pull(pkg)
+    end
+    return self
+end
+
+local function clean(self)
+    Counter("remove")
+    remove(check_rm(cfg.paqdir .. "start/"))
+    remove(check_rm(cfg.paqdir .. "opt/"))
+    return self
+end
+
 -- stylua: ignore
 return setmetatable({
     -- TODO: deprecate. not urgent
     paq = register,
-    install = function(self) Counter("install") vim.tbl_map(install, packages) return self end,
-    update = function(self) Counter("update") vim.tbl_map(update, packages) return self end,
-    clean = function(self) Counter("remove") remove(cfg.paqdir .. "start/") remove(cfg.paqdir .. "opt/") return self end,
-    sync = function(self) self:clean():update():install() return self end,
-    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
+    install = install,
+    update = update,
+    clean = clean,
+    -- sync = function(self) self:clean():update():install() return self end,
+    -- run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
     list = list, setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     -- TODO: deprecate logs. not urgent
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
