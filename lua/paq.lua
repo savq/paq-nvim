@@ -4,6 +4,7 @@
     -- support for user auto-command #71
 -- deprecate nvim 0.4
     -- use vim.notify #65
+-- pkg.state instead of last_ops? (what about removed packages?)
 -- fix paq-clean regression (weird path in vimtex tests)
 -- extend instead of replace `env` in spawn #77
 -- Respond all other issues
@@ -27,7 +28,6 @@ local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
 local packages = {} -- 'name' = {options} pairs
 local num_pkgs = 0
 local last_ops = {} -- 'name' = 'op' pairs
-local counters = {}
 local messages = {
     install = {
         ok = "installed %s",
@@ -48,31 +48,27 @@ local messages = {
     },
 }
 
-local function Counter(op)
-    counters[op] = { ok = 0, err = 0, nop = 0 }
-end
-
-local function update_count(op, result, _, total)
-    local c, t = counters[op]
-    if not c then
-        return
-    end
-    c[result] = c[result] + 1
-    t = c[result]
-    if c.ok + c.err + c.nop == total then
-        Counter(op)
-        vim.cmd("packloadall! | silent! helptags ALL")
-    end
-    return t
-end
-
-local function report(op, result, name, total)
-    local total = total or num_pkgs
-    local cur = update_count(op, result, nil, total)
-    local count = cur and string.format("%d/%d", cur, total) or ""
+local function report(op, name, result, n, total)
+    -- dump(op, name, result, n, total)
+    local count = n and string.format("%d/%d", n, total) or ""
     local msg = messages[op][result]
-    local p = result == "err" and print_err or print
+    local p = result == "err" and print_err or print -- TODO: notify
     p(string.format("Paq [%s] " .. msg, count, name))
+end
+
+local function new_counter()
+    return coroutine.wrap(function(op, total)
+        local c = { ok = 0, err = 0, nop = 0 }
+        while c.ok + c.err + c.nop < total do
+            local name, res = coroutine.yield()
+            c[res] = c[res] + 1
+            if res ~= "nop" or cfg.verbose then
+                report(op, name, res, c[res], total)
+            end
+        end
+        print("Paq finished " .. op) -- TODO: report summary
+        vim.cmd("packloadall! | silent! helptags ALL")
+    end)
 end
 
 local function call_proc(process, args, cwd, cb)
@@ -98,37 +94,35 @@ local function run_hook(pkg)
     if t == "function" then
         vim.cmd("packadd " .. pkg.name)
         local ok = pcall(pkg.run)
-        report("hook", ok and "ok" or "err", pkg.name)
+        report("hook", pkg.name, ok and "ok" or "err")
     elseif t == "string" then
         local args = {}
         for word in pkg.run:gmatch("%S+") do
             table.insert(args, word)
         end
         local post_hook = function(ok)
-            report("hook", ok and "ok" or "err", pkg.name)
+            report("hook", pkg.name, ok and "ok" or "err")
         end
         call_proc(table.remove(args, 1), args, pkg.dir, post_hook)
     end
 end
 
-local function clone(pkg)
-    if pkg.exists then
-        return update_count("install", "nop", nil, num_pkgs)
-    end
+local function clone(pkg, counter)
     local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
     if pkg.branch then
         vim.list_extend(args, { "-b", pkg.branch })
     end
     vim.list_extend(args, { pkg.dir })
+
     local post_install = function(ok)
+        counter(pkg.name, ok and "ok" or "err")
         if ok then
+            -- TODO: pkg.state
             pkg.exists = true
             last_ops[pkg.name] = "install"
-            if pkg.run then
-                run_hook(pkg)
-            end
+
+            return pkg.run and run_hook(pkg)
         end
-        report("install", ok and "ok" or "err", pkg.name)
     end
     call_proc("git", args, nil, post_install)
 end
@@ -146,52 +140,74 @@ local function get_git_hash(dir)
     return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
 end
 
-local function pull(pkg)
-    if not pkg.exists or pkg.pin then
-        return update_count("update", "nop", nil, num_pkgs)
-    end
+local function pull(pkg, counter)
     local hash = get_git_hash(pkg.dir)
     local post_update = function(ok)
         if not ok then
-            return report("update", "err", pkg.name)
+            counter(pkg.name, "err")
         elseif get_git_hash(pkg.dir) ~= hash then
             last_ops[pkg.name] = "update"
-            report("update", "ok", pkg.name)
-            if pkg.run then
-                run_hook(pkg)
-            end
+            counter(pkg.name, "ok")
+            return pkg.run and run_hook(pkg)
         else
-            (cfg.verbose and report or update_count)("update", "nop", pkg.name, num_pkgs) -- blursed
+            counter(pkg.name, "nop")
         end
     end
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, post_update)
 end
 
-local function check_rm(packdir)
+local function check_rm()
     local to_remove = {}
-    local handle = uv.fs_scandir(packdir)
-    while handle do
-        local name = uv.fs_scandir_next(handle)
-        if not name then
-            break
-        end
-        local pkg = packages[name]
-        local dir = packdir .. name
-        if not (pkg and pkg.dir == dir) then
-            table.insert(to_remove, {name=name, dir=dir})
+    for _, packdir in pairs({ "start/", "opt/" }) do
+        local path = cfg.paqdir .. packdir
+        local handle = uv.fs_scandir(path)
+        while handle do
+            local name = uv.fs_scandir_next(handle)
+            if not name then
+                break
+            end
+            local pkg = packages[name]
+            local dir = dump(path .. name)
+            if not (pkg and pkg.dir == dir) then
+                table.insert(to_remove, { name = name, dir = dir })
+            end
         end
     end
     return to_remove
 end
 
-local function remove(to_remove)
-    for _, p in pairs(to_remove) do
-        if p.name ~= "paq-nvim" then
-            -- TODO(regresion): This fails for weird paths
-            local ok = vim.fn.delete(p.dir, "rf")
-            report("remove", ok == 0 and "ok" or "err", p.name, #to_remove)
-        end
+local function remove(p, counter)
+    if p.name ~= "paq-nvim" then
+        local ok = vim.fn.delete(p.dir, "rf") -- TODO(regression): This fails for weird paths
+        counter(p.name, ok == 0 and "ok" or "err")
     end
+end
+
+local function exe_op(op, fn, pkgs)
+    if #pkgs ~= 0 then
+        local counter = new_counter()
+        counter(op, #pkgs)
+        for _, pkg in pairs(pkgs) do
+            fn(pkg, counter)
+        end
+    else
+        print("Paq: Nothing to " .. op)
+    end
+end
+
+local function install(self)
+    exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists end, packages))
+    return self
+end
+
+local function update(self)
+    exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages))
+    return self
+end
+
+function clean(self)
+    exe_op("remove", remove, dump(check_rm()))
+    return self
 end
 
 local function list()
@@ -263,40 +279,20 @@ do
     })
 end
 
-local function install(self)
-    Counter("install")
-    to_install = vim.tbl_filter(function(pkg) return not pkg.exists end, packages)
-    for _, pkg in pairs(to_install) do
-        clone(pkg)
-    end
-    return self
-end
-
-local function update(self)
-    Counter("update")
-    for _, pkg in pairs(packages) do
-        pull(pkg)
-    end
-    return self
-end
-
-local function clean(self)
-    Counter("remove")
-    remove(check_rm(cfg.paqdir .. "start/"))
-    remove(check_rm(cfg.paqdir .. "opt/"))
-    return self
-end
-
 -- stylua: ignore
 return setmetatable({
     -- TODO: deprecate. not urgent
     paq = register,
+    debug_pkgs = function() return packages end,
     install = install,
     update = update,
     clean = clean,
     -- sync = function(self) self:clean():update():install() return self end,
     -- run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end,
-    list = list, setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    list = list,
+    -- TODO: is there an error here with paqdir/path?
+    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    cfg = cfg,
     -- TODO: deprecate logs. not urgent
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
     log_clean = function(self) uv.fs_unlink(LOGFILE) print("Paq log file deleted") return self end,
