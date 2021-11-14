@@ -1,6 +1,5 @@
 --[[ TODOS:
 -- fix paq-clean regression (weird path in vimtex tests)
--- extend instead of replace `env` in spawn #77
 -- support for user auto-command #71
 -- refactor paqrunhooks. allow for single hook
 -- Respond all other issues
@@ -11,7 +10,6 @@
 
 local uv = vim.loop
 local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat") -- TODO: Deprecate
-
 local cfg = {
     paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     verbose = false,
@@ -25,6 +23,24 @@ local messages = {
     remove = { ok = "Removed %s", err = "Failed to remove %s" },
     hook = { ok = "Ran hook for %s", err = "Failed to run hook for %s" },
 }
+
+-- This is done only once. Doing it for every process seems overkill
+local env = {}
+for var, val in pairs(uv.os_environ()) do
+    table.insert(env, ("%s=%s"):format(var, val))
+end
+table.insert(env, "GIT_TERMINAL_PROMPT=0")
+
+vim.tbl_map(vim.cmd, {
+    "command! PaqInstall  lua require('paq'):install()",
+    "command! PaqUpdate   lua require('paq'):update()",
+    "command! PaqClean    lua require('paq'):clean()",
+    "command! PaqRunHooks lua require('paq'):run_hooks()",
+    "command! PaqSync     lua require('paq'):sync()",
+    "command! PaqList     lua require('paq').list()",
+    "command! PaqLogOpen  lua require('paq').log_open()",
+    "command! PaqLogClean lua require('paq').log_clean()",
+})
 
 local function report(op, name, result, n, total)
     local count = n and (" [%d/%d]"):format(n, total) or ""
@@ -59,7 +75,7 @@ local function call_proc(process, args, cwd, cb)
     -- TODO: There's no error handling here!
     handle = uv.spawn(
         process,
-        { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = { "GIT_TERMINAL_PROMPT=0" } },
+        { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = env },
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -227,19 +243,6 @@ local function register(args)
         run = args.run or args.hook, -- TODO(cleanup): remove `hook` option
         url = args.url or "https://github.com/" .. args[1] .. ".git",
     }
-end
-
-do
-    vim.tbl_map(vim.cmd, {
-        "command! PaqInstall  lua require('paq'):install()",
-        "command! PaqUpdate   lua require('paq'):update()",
-        "command! PaqClean    lua require('paq'):clean()",
-        "command! PaqRunHooks lua require('paq'):run_hooks()",
-        "command! PaqSync     lua require('paq'):sync()",
-        "command! PaqList     lua require('paq').list()",
-        "command! PaqLogOpen  lua require('paq').log_open()",
-        "command! PaqLogClean lua require('paq').log_clean()",
-    })
 end
 
 -- stylua: ignore
