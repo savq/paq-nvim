@@ -42,13 +42,35 @@ local function list_extend(dst, src, start, finish)
     return dst
 end
 
+local function notify(msg, log_level, _opts)
+    local ERROR = 4
+    local WARN = 3
+    if log_level == ERROR then
+        vim.api.nvim_err_writeln(msg)
+    elseif log_level == WARN then
+        vim.api.nvim_echo({ { msg, "WarningMsg" } }, true, {})
+    else
+        vim.api.nvim_echo({ { msg } }, true, {})
+    end
+end
+
 return setmetatable({
     fn = fn,
+    notify = notify,
+    log = {
+        levels = {
+            DEBUG = 1,
+            ERROR = 4,
+            INFO = 2,
+            TRACE = 0,
+            WARN = 3,
+        },
+    },
     cmd = vim.api.nvim_command,
-    tbl_map = tbl_map,
-    tbl_keys = tbl_keys,
-    tbl_filter = tbl_filter,
     list_extend = list_extend,
+    tbl_filter = tbl_filter,
+    tbl_keys = tbl_keys,
+    tbl_map = tbl_map,
 }, {
     __index = function(self, key)
         return vim[key] or self[key]

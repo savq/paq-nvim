@@ -164,7 +164,7 @@ imported as `paq`, the functions are:
     Boolean that determines whether paq should print `(up-to-date) pkg` for
     packages that were not updated.
 
-    Default value: `true`
+    Default value: `false`
 
   Note that unlike most Lua plugins, paq:setup is a method, not a function.
   This allows chaining it with the list of packages without needing to

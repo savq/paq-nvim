@@ -3,7 +3,6 @@
     -- refactor
     -- support for user auto-command #71
 -- deprecate nvim 0.4
-    -- use vim.notify #65
 -- pkg.state instead of last_ops? (what about removed packages?)
 -- fix paq-clean regression (weird path in vimtex tests)
 -- extend instead of replace `env` in spawn #77
@@ -15,14 +14,12 @@ local uv = vim.loop
 
 -- TODO(cleanup): Deprecate
 local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")
-
--- TODO(notify): Replace with vim.notify
-local print_err = vim.api.nvim_err_writeln
+local ERROR = vim.log.levels.ERROR or 4
 
 local cfg = {
     paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
-    -- TODO(notify): Default to verbose=false
-    verbose = true,
+
+    verbose = false,
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
 local packages = {} -- 'name' = {options} pairs
@@ -49,11 +46,12 @@ local messages = {
 }
 
 local function report(op, name, result, n, total)
-    -- dump(op, name, result, n, total)
     local count = n and string.format("%d/%d", n, total) or ""
     local msg = messages[op][result]
-    local p = result == "err" and print_err or print -- TODO: notify
-    p(string.format("Paq [%s] " .. msg, count, name))
+    vim.notify(
+        string.format("Paq [%s] " .. msg, count, name),
+        result == "err" and ERROR or nil -- 4 is error (check if nvim 0.4 has vim.log)
+    )
 end
 
 local function new_counter()
@@ -66,7 +64,7 @@ local function new_counter()
                 report(op, name, res, c[res], total)
             end
         end
-        print("Paq finished " .. op) -- TODO: report summary
+        vim.notify(string.format("Paq: %s complete", op)) -- TODO: report summary
         vim.cmd("packloadall! | silent! helptags ALL")
     end)
 end
@@ -167,7 +165,7 @@ local function check_rm()
                 break
             end
             local pkg = packages[name]
-            local dir = dump(path .. name)
+            local dir = path .. name
             if not (pkg and pkg.dir == dir) then
                 table.insert(to_remove, { name = name, dir = dir })
             end
@@ -191,22 +189,34 @@ local function exe_op(op, fn, pkgs)
             fn(pkg, counter)
         end
     else
-        print("Paq: Nothing to " .. op)
+        vim.notify("Paq: Nothing to " .. op)
     end
 end
 
 local function install(self)
-    exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists end, packages))
+    exe_op(
+        "install",
+        clone,
+        vim.tbl_filter(function(pkg)
+            return not pkg.exists
+        end, packages)
+    )
     return self
 end
 
 local function update(self)
-    exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages))
+    exe_op(
+        "update",
+        pull,
+        vim.tbl_filter(function(pkg)
+            return pkg.exists and not pkg.pin
+        end, packages)
+    )
     return self
 end
 
 function clean(self)
-    exe_op("remove", remove, dump(check_rm()))
+    exe_op("remove", remove, check_rm())
     return self
 end
 
@@ -247,7 +257,7 @@ local function register(args)
         src = args[1]
     end
     if not name then
-        return print_err("Paq: Failed to parse " .. src)
+        return vim.notify("Paq: Failed to parse " .. src, 4)
     elseif packages[name] then
         return
     end
@@ -295,6 +305,6 @@ return setmetatable({
     cfg = cfg,
     -- TODO: deprecate logs. not urgent
     log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end,
-    log_clean = function(self) uv.fs_unlink(LOGFILE) print("Paq log file deleted") return self end,
+    log_clean = function(self) uv.fs_unlink(LOGFILE) vim.notify("Paq log file deleted") return self end,
 }, { __call = function(self, tbl) packages = {} num_pkgs = 0 vim.tbl_map(register, tbl) return self end,
 })
