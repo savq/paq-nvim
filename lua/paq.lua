@@ -8,17 +8,15 @@
 -- extend instead of replace `env` in spawn #77
 -- Respond all other issues
 -- deprecate logfile?
+-- refactor paqrunhooks. allow for single hook
 -- ]]
 
 local uv = vim.loop
-
--- TODO(cleanup): Deprecate
-local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")
+local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat")  -- TODO: Deprecate
 local ERROR = vim.log.levels.ERROR or 4
 
 local cfg = {
     paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
-
     verbose = false,
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
@@ -27,30 +25,29 @@ local num_pkgs = 0
 local last_ops = {} -- 'name' = 'op' pairs
 local messages = {
     install = {
-        ok = "installed %s",
-        err = "failed to install %s",
+        ok = "Installed %s",
+        err = "Failed to install %s",
     },
     update = {
-        ok = "updated %s",
-        err = "failed to update %s",
+        ok = "Updated %s",
+        err = "Failed to update %s",
         nop = "(up-to-date) %s",
     },
     remove = {
-        ok = "removed %s",
-        err = "failed to remove %s",
+        ok = "Removed %s",
+        err = "Failed to remove %s",
     },
     hook = {
-        ok = "ran hook for %s",
-        err = "failed to run hook for %s",
+        ok = "Ran hook for %s",
+        err = "Failed to run hook for %s",
     },
 }
 
 local function report(op, name, result, n, total)
-    local count = n and string.format("%d/%d", n, total) or ""
-    local msg = messages[op][result]
+    local count = n and string.format(" [%d/%d]", n, total) or ""
     vim.notify(
-        string.format("Paq [%s] " .. msg, count, name),
-        result == "err" and ERROR or nil -- 4 is error (check if nvim 0.4 has vim.log)
+        string.format("Paq:%s " .. messages[op][result], count, name),
+        result == "err" and ERROR or nil
     )
 end
 
@@ -64,7 +61,7 @@ local function new_counter()
                 report(op, name, res, c[res], total)
             end
         end
-        vim.notify(string.format("Paq: %s complete", op)) -- TODO: report summary
+        vim.notify(string.format("Paq: %s complete (%d ok; %d errors)", op, c.ok + c.nop, c.err))
         vim.cmd("packloadall! | silent! helptags ALL")
     end)
 end
@@ -176,8 +173,11 @@ end
 
 local function remove(p, counter)
     if p.name ~= "paq-nvim" then
-        local ok = vim.fn.delete(p.dir, "rf") -- TODO(regression): This fails for weird paths
+        local ok = vim.fn.delete(p.dir, "rf")  -- TODO(regression): This fails for weird paths
         counter(p.name, ok == 0 and "ok" or "err")
+        if ok then
+            last_ops[p.name] = "remove"
+        end
     end
 end
 
@@ -221,24 +221,31 @@ function clean(self)
 end
 
 local function list()
-    local installed = vim.tbl_filter(function(name)
-        return packages[name].exists
-    end, vim.tbl_keys(packages))
+    local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
     local removed = vim.tbl_filter(function(name)
         return last_ops[name] == "remove"
-    end, vim.tbl_keys(
-        last_ops
-    ))
-    table.sort(installed)
+    end, vim.tbl_keys(last_ops)
+    )
+    table.sort(installed, function(a, b) return a.name < b.name end)
     table.sort(removed)
     local sym_tbl = { install = "+", update = "*", remove = " " }
     for header, pkgs in pairs({ ["Installed packages:"] = installed, ["Recently removed:"] = removed }) do
         if #pkgs ~= 0 then
             print(header)
-            for _, name in ipairs(pkgs) do
-                print("  ", sym_tbl[last_ops[name]] or " ", name)
+            for _, pkg in ipairs(pkgs) do
+                print("  ", sym_tbl[last_ops[pkg.name]] or " ", pkg.name)
             end
         end
+    end
+end
+
+local function parse_name(args)
+    if args.as then
+        return args.as
+    elseif args.url then
+        return args.url:gsub("%.git$", ""):match("/([%w-_.]+)$"), args.url
+    else
+        return args[1]:match("^[%w-]+/([%w-_.]+)$"), args[1]
     end
 end
 
@@ -246,18 +253,9 @@ local function register(args)
     if type(args) == "string" then
         args = { args }
     end
-    local name, src
-    if args.as then
-        name = args.as
-    elseif args.url then
-        name = args.url:gsub("%.git$", ""):match("/([%w-_.]+)$")
-        src = args.url
-    else
-        name = args[1]:match("^[%w-]+/([%w-_.]+)$")
-        src = args[1]
-    end
+    local name, src = parse_name(args)
     if not name then
-        return vim.notify("Paq: Failed to parse " .. src, 4)
+        return vim.notify("Paq: Failed to parse " .. src, ERROR)
     elseif packages[name] then
         return
     end
