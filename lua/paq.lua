@@ -1,6 +1,5 @@
 --[[ TODOS:
 -- fix paq-clean regression (weird path in vimtex tests)
--- support for user auto-command #71
 -- refactor paqrunhooks. allow for single hook
 -- Respond all other issues
 -- deprecate nvim 0.4
@@ -63,7 +62,7 @@ local function new_counter()
         end
         vim.notify(summary:format(op, c.ok, c.err, c.nop))
         vim.cmd("packloadall! | silent! helptags ALL")
-        -- TODO: auto-command
+        vim.cmd("doautocmd User PaqDone" .. op)
     end)
 end
 
@@ -178,7 +177,9 @@ end
 
 local function exe_op(op, fn, pkgs)
     if #pkgs == 0 then
-        return vim.notify("Paq: Nothing to " .. op)
+        vim.notify("Paq: Nothing to " .. op)
+        vim.cmd("doautocmd User PaqDone" .. op)
+        return
     end
     local counter = new_counter()
     counter(op, #pkgs)

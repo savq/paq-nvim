@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.4.4.  Last change: 2021-08-13
+*paq-nvim.txt*  Package manager for Neovim >= v0.4.4.  Last change: 2021-11-15
 *paq-nvim*
 *paq*
 
@@ -13,8 +13,10 @@ CONTENTS                                                        *paq-contents*
   Usage                                                  |paq-usage|
   Functions and Commands                                 |paq-commands|
   Package options                                        |paq-options|
+  Autocommands                                           |paq-autocommands|
   Paq directory                                          |paq-dir|
   Paq log                                                |paq-log|
+  Bootstrapping                                          |paq-bootstrapping|
   Troubleshooting                                        |paq-troubleshooting|
   Miscellaneous                                          |paq-misc|
     Using local packages
@@ -299,6 +301,28 @@ we could call `paq` like:
 <
 
 ==============================================================================
+PAQ AUTOCOMMANDS                                            *paq-autocommands*
+                                                              *PaqDoneInstall*
+                                                               *PaqDoneUpdate*
+
+Paq provides |User| events for its async operations, each event has the name
+`PaqDone` followed by the name of an operation:
+ 
+    `PaqDoneInstall` autocommands run after `PaqInstall`
+    `PaqDoneUpdate` autocommands run after `PaqUpdate`
+
+You can define an |autocmd| for these events using the usual syntax:
+>
+    autocmd User PaqDoneInstall <your-commands>
+<
+This is useful for bootstrapping or calling Paq in headless mode. See the
+section on |paq-bootstrapping|.
+
+NOTE: `PaqClean` is currently synchronous (there's a Windows/libuv problem) so
+there's no autocommand for it.
+
+
+==============================================================================
 PAQ DIRECTORY                                                        *paq-dir*
 
 Paq installs packages using Neovim's |packages| convention, which itself
@@ -319,6 +343,57 @@ The log file can be found at:
 >
     :echo stdpath('cache') .. '/paq.log'
 <
+
+==============================================================================
+BOOTSTRAPPING                                              *paq-bootstrapping*
+
+You can use Paq programmatically to install your packages in |--headless|
+mode. This can make it easier to set-up your development environment
+automatically.
+
+An example of how to "bootstrap" Paq is presented below:
+>
+  -- In ~/.config/nvim/lua/bootstrap.lua
+
+  local PKGS = {
+    "savq/paq-nvim";
+    -- List your packages here!
+  }
+
+  local function clone_paq()
+    local path = vim.fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
+    if vim.fn.empty(vim.fn.glob(path)) > 0 then
+      vim.fn.system{'git', 'clone', '--depth=1',
+        'https://github.com/savq/paq-nvim.git', path} 
+    end
+  end
+
+  local function bootstrap_paq()
+    clone_paq()
+
+    -- Load Paq
+    vim.cmd('packadd paq-nvim')
+    local paq = require('paq')
+
+    -- Exit nvim after installing plugins
+    vim.cmd('autocmd User PaqDoneInstall quit')
+
+    -- Read and install packages
+    paq(PKGS)
+    paq.install()
+  end
+
+  return { bootstrap_paq = bootstrap_paq }
+<
+
+Now, installing your packages should only require calling the `bootstrap`
+function from your shell:
+>
+    nvim --headless -u NONE -c 'require("bootstrap").bootstrap_paq()'
+<
+
+You can adjust the script above to suit your needs. You might only want to
+clone Paq automatically without installing packages, or vice-versa.
 
 
 ==============================================================================
