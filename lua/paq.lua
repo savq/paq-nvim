@@ -17,10 +17,10 @@ local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
 local packages = {} -- 'name' = {options...} pairs
 local last_ops = {} -- 'name' = 'op' pairs
 local messages = {
-    install = { ok = "Installed %s", err = "Failed to install %s" },
-    update = { ok = "Updated %s", err = "Failed to update %s", nop = "(up-to-date) %s" },
-    remove = { ok = "Removed %s", err = "Failed to remove %s" },
-    hook = { ok = "Ran hook for %s", err = "Failed to run hook for %s" },
+    install = { ok = "Installed", err = "Failed to install" },
+    update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
+    remove = { ok = "Removed", err = "Failed to remove" },
+    hook = { ok = "Ran hook for", err = "Failed to run hook for" },
 }
 
 -- This is done only once. Doing it for every process seems overkill
@@ -41,9 +41,9 @@ vim.tbl_map(vim.cmd, {
     "command! PaqLogClean lua require('paq').log_clean()",
 })
 
-local function report(op, name, result, n, total)
+local function report(op, name, res, n, total)
     local count = n and (" [%d/%d]"):format(n, total) or ""
-    vim.notify(("Paq:%s " .. messages[op][result]):format(count, name), result == "err" and vim.log.levels.ERROR)
+    vim.notify(("Paq:%s %s %s"):format(count, messages[op][res], name), res == "err" and vim.log.levels.ERROR)
 end
 
 local function new_counter()
