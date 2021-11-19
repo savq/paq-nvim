@@ -125,11 +125,16 @@ imported as `paq`, the functions are:
   out of order.
 
 
-|paq.run_hooks|                                                *paq.run_hooks*
-                                                              *:PaqRunHooks*
-  Executes all `run` hooks (functions and shell commands). This can be used
-  when a hook fails, to run a hook without a package having changed, or for
-  other debugging purposes.
+|paq._run_hook|                                                *paq._run_hook*
+                                                               *:PaqRunHook*
+  Takes as single argument a string with the name of a package. If the package
+  has a `run` hook (functions and shell commands), it will execute the hook.
+  This can be used when a hook fails, to run a hook without a package having
+  changed, or for other debugging purposes.
+
+
+|paq.run_hooks|
+  DEPRECATED.
 
 
 |paq.list|                                                          *paq.list*

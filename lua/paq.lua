@@ -1,6 +1,5 @@
 --[[ TODOS:
 -- fix paq-clean regression (weird path in vimtex tests)
--- refactor paqrunhooks. allow for single hook
 -- Respond all other issues
 -- deprecate nvim 0.4
 -- deprecate logfile
@@ -30,16 +29,17 @@ for var, val in pairs(uv.os_environ()) do
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
-vim.tbl_map(vim.cmd, {
-    "command! PaqInstall  lua require('paq'):install()",
-    "command! PaqUpdate   lua require('paq'):update()",
-    "command! PaqClean    lua require('paq'):clean()",
-    "command! PaqRunHooks lua require('paq'):run_hooks()",
-    "command! PaqSync     lua require('paq'):sync()",
-    "command! PaqList     lua require('paq').list()",
-    "command! PaqLogOpen  lua require('paq').log_open()",
-    "command! PaqLogClean lua require('paq').log_clean()",
-})
+vim.cmd [[
+    command! PaqInstall  lua require('paq'):install()
+    command! PaqUpdate   lua require('paq'):update()
+    command! PaqClean    lua require('paq'):clean()
+    command! PaqSync     lua require('paq'):sync()
+    command! PaqList     lua require('paq').list()
+    command! PaqLogOpen  lua require('paq').log_open()
+    command! PaqLogClean lua require('paq').log_clean()
+    command! PaqRunHooks lua require('paq'):run_hooks()  " TODO: DEPRECATE
+    command! -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
+]]
 
 local function report(op, name, res, n, total)
     local count = n and (" [%d/%d]"):format(n, total) or ""
@@ -259,7 +259,13 @@ return setmetatable({
         exe_op("remove", remove, check_rm()) return self
     end;
     sync = function(self) self:clean():update():install() return self end;
-    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end;
+
+    _run_hook = function(pkgname) return run_hook(packages[pkgname]) end;
+    _get_hooks = function()
+        return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages))
+    end;
+    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end; -- TODO: DEPRECATE
+
     list = list;
     -- TODO: is there an error here with paqdir/path?
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end;
