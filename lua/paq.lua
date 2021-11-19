@@ -3,7 +3,6 @@
 -- Respond all other issues
 -- deprecate nvim 0.4
 -- deprecate logfile
--- pkg.state instead of last_ops? (what about removed packages?)
 -- ]]
 
 local uv = vim.loop
@@ -14,7 +13,6 @@ local cfg = {
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
 local packages = {} -- 'name' = {options...} pairs
-local last_ops = {} -- 'name' = 'op' pairs
 local messages = {
     install = { ok = "Installed", err = "Failed to install" },
     update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
@@ -111,7 +109,7 @@ local function clone(pkg, counter)
         counter(pkg.name, ok and "ok" or "err")
         if ok then
             pkg.exists = true
-            last_ops[pkg.name] = "install"
+            pkg.status = "installed"
             return pkg.run and run_hook(pkg)
         end
     end)
@@ -136,7 +134,7 @@ local function pull(pkg, counter)
         if not ok then
             counter(pkg.name, "err")
         elseif get_git_hash(pkg.dir) ~= hash then
-            last_ops[pkg.name] = "update"
+            pkg.status = "updated"
             counter(pkg.name, "ok")
             return pkg.run and run_hook(pkg)
         else
@@ -170,7 +168,7 @@ local function remove(p, counter)
         local ok = vim.fn.delete(p.dir, "rf") -- TODO(regression): This fails for weird paths
         counter(p.name, ok == 0 and "ok" or "err")
         if ok then
-            last_ops[p.name] = "remove"
+            packages[p.name] = {name = p.name, status = "removed"}
         end
     end
 end
@@ -188,27 +186,20 @@ local function exe_op(op, fn, pkgs)
     end
 end
 
+-- stylua: ignore
 local function list()
-    -- stylua: ignore start
-    local installed = vim.tbl_filter(function(pkg)
-        return pkg.exists
-    end, packages)
-    local removed = vim.tbl_filter(function(name)
-        return last_ops[name] == "remove"
-    end, vim.tbl_keys(
-        last_ops
-    ))
-    table.sort(installed, function(a, b)
-        return a.name < b.name
-    end)
-    table.sort(removed)
-    -- stylua: ignore end
-    local sym_tbl = { install = "+", update = "*", remove = " " }
+    local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
+    table.sort(installed, function(a, b) return a.name < b.name end)
+
+    local removed = vim.tbl_filter(function(pkg) return pkg.status == "removed" end, packages)
+    table.sort(removed, function(a, b) return a.name < b.name end)
+
+    local sym_tbl = { installed = "+", updated = "*", removed = " " }
     for header, pkgs in pairs({ ["Installed packages:"] = installed, ["Recently removed:"] = removed }) do
         if #pkgs ~= 0 then
             print(header)
             for _, pkg in ipairs(pkgs) do
-                print("  ", sym_tbl[last_ops[pkg.name]] or " ", pkg.name)
+                print(" ", sym_tbl[pkg.status] or " ", pkg.name)
             end
         end
     end
@@ -240,6 +231,7 @@ local function register(args)
         branch = args.branch,
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
+        status = "listed",   -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
         run = args.run or args.hook, -- TODO(cleanup): remove `hook` option
         url = args.url or "https://github.com/" .. args[1] .. ".git",
@@ -249,7 +241,7 @@ end
 -- stylua: ignore
 return setmetatable({
     install = function (self)
-        exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists end, packages))
+        exe_op("install", clone, vim.tbl_filter(function(pkg) return not (pkg.exists or pkg.status == "removed") end, packages))
         return self
     end;
     update = function (self)
