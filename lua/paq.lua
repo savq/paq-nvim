@@ -65,12 +65,11 @@ local function new_counter()
 end
 
 local function call_proc(process, args, cwd, cb)
-    local log, stderr, handle
-    log = uv.fs_open(LOGFILE, "a+", 0x1A4)
-    stderr = uv.new_pipe(false)
+    local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
+    local stderr = uv.new_pipe(false)
     stderr:open(log)
-    -- TODO: There's no error handling here!
-    handle = uv.spawn(
+    local handle, pid;
+    handle, pid = uv.spawn(
         process,
         { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = env },
         vim.schedule_wrap(function(code)
@@ -80,6 +79,9 @@ local function call_proc(process, args, cwd, cb)
             cb(code == 0)
         end)
     )
+    if not handle then
+        vim.notify(string.format("Paq: Failed to spawn %s (%s)", process, pid))
+    end
 end
 
 local function run_hook(pkg)
