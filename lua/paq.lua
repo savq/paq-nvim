@@ -8,7 +8,7 @@
 local uv = vim.loop
 local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat") -- TODO: Deprecate
 local cfg = {
-    paqdir = vim.fn.stdpath("data") .. "/site/pack/paqs/",
+    path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     verbose = false,
 }
 local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
@@ -148,7 +148,7 @@ end
 local function check_rm()
     local to_remove = {}
     for _, packdir in pairs({ "start/", "opt/" }) do
-        local path = cfg.paqdir .. packdir
+        local path = cfg.path .. packdir
         local handle = uv.fs_scandir(path)
         while handle do
             local name = uv.fs_scandir_next(handle)
@@ -227,7 +227,7 @@ local function register(args)
     elseif packages[name] then
         return
     end
-    local dir = cfg.paqdir .. (args.opt and "opt/" or "start/") .. name
+    local dir = cfg.path .. (args.opt and "opt/" or "start/") .. name
     packages[name] = {
         name = name,
         branch = args.branch,
@@ -261,7 +261,6 @@ return setmetatable({
     run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end; -- TODO: DEPRECATE
 
     list = list;
-    -- TODO: is there an error here with paqdir/path?
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end;
     cfg = cfg;
     -- TODO: deprecate logs. not urgent

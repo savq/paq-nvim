@@ -331,11 +331,12 @@ there's no autocommand for it.
 PAQ DIRECTORY                                                        *paq-dir*
 
 Paq installs packages using Neovim's |packages| convention, which itself
-follows the XDG Base Directory specification. You can find the directory
-where Paq installs packages by running the command:
+follows the XDG Base Directory specification. You can find the default
+directory where Paq installs packages by running the command:
 >
     :echo stdpath('data') .. '/site/pack/paqs'
 <
+
 If you have packages that aren't managed by Paq, you shouldn't put them on
 Paq's directory, since |paq.clean| could delete them.
 
