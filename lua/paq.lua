@@ -84,7 +84,7 @@ local function call_proc(process, args, cwd, cb)
     end
 end
 
-local function run_hook(pkg)
+local function run_hook(pkg, counter)
     local t = type(pkg.run)
     if t == "function" then
         vim.cmd("packadd " .. pkg.name)
@@ -96,7 +96,9 @@ local function run_hook(pkg)
             table.insert(args, word)
         end
         call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
-            report("hook", pkg.name, ok and "ok" or "err")
+            local res = ok and "ok" or "err"
+            report("hook", pkg.name, res)
+            return  counter and counter(pkg.name, res)
         end)
     end
 end
@@ -108,11 +110,12 @@ local function clone(pkg, counter)
     end
     vim.list_extend(args, { pkg.dir })
     call_proc("git", args, nil, function(ok)
-        counter(pkg.name, ok and "ok" or "err")
         if ok then
             pkg.exists = true
             pkg.status = "installed"
-            return pkg.run and run_hook(pkg)
+            return pkg.run and run_hook(pkg, counter) or counter(pkg.name, "ok")
+        else
+            counter(pkg.name, "err")
         end
     end)
 end
@@ -137,8 +140,7 @@ local function pull(pkg, counter)
             counter(pkg.name, "err")
         elseif get_git_hash(pkg.dir) ~= hash then
             pkg.status = "updated"
-            counter(pkg.name, "ok")
-            return pkg.run and run_hook(pkg)
+            return pkg.run and run_hook(pkg, counter) or counter(pkg.name, "ok")
         else
             counter(pkg.name, "nop")
         end
