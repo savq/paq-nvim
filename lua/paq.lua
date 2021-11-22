@@ -27,7 +27,7 @@ for var, val in pairs(uv.os_environ()) do
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
-vim.cmd [[
+vim.cmd([[
     command! PaqInstall  lua require('paq'):install()
     command! PaqUpdate   lua require('paq'):update()
     command! PaqClean    lua require('paq'):clean()
@@ -37,11 +37,11 @@ vim.cmd [[
     command! PaqLogClean lua require('paq').log_clean()
     command! PaqRunHooks lua require('paq'):run_hooks()  " TODO: DEPRECATE
     command! -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
-]]
+]])
 
 local function report(op, name, res, n, total)
     local count = n and (" [%d/%d]"):format(n, total) or ""
-    vim.notify(("Paq:%s %s %s"):format(count, messages[op][res], name), res == "err" and vim.log.levels.ERROR)
+    vim.notify((" Paq:%s %s %s"):format(count, messages[op][res], name), res == "err" and vim.log.levels.ERROR)
 end
 
 local function new_counter()
@@ -54,10 +54,7 @@ local function new_counter()
                 report(op, name, res, c[res], total)
             end
         end
-        local summary = "Paq: %s complete. %d ok; %d errors;"
-        if c.nop > 0 then
-            summary = summary .. " %d no-ops"
-        end
+        local summary = (" Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or ""))
         vim.notify(summary:format(op, c.ok, c.err, c.nop))
         vim.cmd("packloadall! | silent! helptags ALL")
         vim.cmd("doautocmd User PaqDone" .. op)
@@ -68,7 +65,7 @@ local function call_proc(process, args, cwd, cb)
     local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
     stderr:open(log)
-    local handle, pid;
+    local handle, pid
     handle, pid = uv.spawn(
         process,
         { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = env },
@@ -80,7 +77,7 @@ local function call_proc(process, args, cwd, cb)
         end)
     )
     if not handle then
-        vim.notify(string.format("Paq: Failed to spawn %s (%s)", process, pid))
+        vim.notify(string.format(" Paq: Failed to spawn %s (%s)", process, pid))
     end
 end
 
@@ -98,7 +95,7 @@ local function run_hook(pkg, counter)
         call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
             local res = ok and "ok" or "err"
             report("hook", pkg.name, res)
-            return  counter and counter(pkg.name, res)
+            return counter and counter(pkg.name, res)
         end)
     end
 end
@@ -172,14 +169,14 @@ local function remove(p, counter)
         local ok = vim.fn.delete(p.dir, "rf") -- TODO(regression): This fails for weird paths
         counter(p.name, ok == 0 and "ok" or "err")
         if ok then
-            packages[p.name] = {name = p.name, status = "removed"}
+            packages[p.name] = { name = p.name, status = "removed" }
         end
     end
 end
 
 local function exe_op(op, fn, pkgs)
     if #pkgs == 0 then
-        vim.notify("Paq: Nothing to " .. op)
+        vim.notify(" Paq: Nothing to " .. op)
         vim.cmd("doautocmd User PaqDone" .. op)
         return
     end
@@ -225,7 +222,7 @@ local function register(args)
     end
     local name, src = parse_name(args)
     if not name then
-        return vim.notify("Paq: Failed to parse " .. src, vim.log.levels.ERROR)
+        return vim.notify(" Paq: Failed to parse " .. src, vim.log.levels.ERROR)
     elseif packages[name] then
         return
     end
@@ -235,7 +232,7 @@ local function register(args)
         branch = args.branch,
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
-        status = "listed",   -- TODO: should probably merge this with `exists` in the future...
+        status = "listed", -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
         run = args.run or args.hook, -- TODO(cleanup): remove `hook` option
         url = args.url or "https://github.com/" .. args[1] .. ".git",
@@ -244,32 +241,17 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function (self)
-        exe_op("install", clone, vim.tbl_filter(function(pkg) return not (pkg.exists or pkg.status == "removed") end, packages))
-        return self
-    end;
-    update = function (self)
-        exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) return self
-    end;
-    clean = function (self)
-        exe_op("remove", remove, check_rm()) return self
-    end;
-    sync = function(self) self:clean():update():install() return self end;
-
-    _run_hook = function(pkgname) return run_hook(packages[pkgname]) end;
-    _get_hooks = function()
-        return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages))
-    end;
-    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end; -- TODO: DEPRECATE
-
-    list = list;
-    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end;
-    cfg = cfg;
-    -- TODO: deprecate logs. not urgent
-    log_open = function(self) vim.cmd("sp " .. LOGFILE) return self end;
-    log_clean = function(self) uv.fs_unlink(LOGFILE) vim.notify("Paq log file deleted") return self end;
-
-    -- TODO: deprecate. not urgent
-    paq = register,
-}, { __call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) return self end,
+    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not (pkg.exists or pkg.status == "removed") end, packages)) end,
+    update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
+    clean = function() exe_op("remove", remove, check_rm()) end,
+    sync = function(self) self:clean() self:update() self:install() end,
+    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    _run_hook = function(name) return run_hook(packages[name]) end,
+    _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
+    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end, -- TODO: DEPRECATE
+    list = list,
+    log_open = function() vim.cmd("sp " .. LOGFILE) end,
+    log_clean = function() return assert(uv.fs_unlink(LOGFILE)) and vim.notify(" Paq: log file deleted") end,
+    paq = register, -- TODO: deprecate. not urgent
+}, {__call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) return self end,
 })
