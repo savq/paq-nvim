@@ -48,7 +48,7 @@ local function new_counter()
     return coroutine.wrap(function(op, total)
         local c = { ok = 0, err = 0, nop = 0 }
         while c.ok + c.err + c.nop < total do
-            local name, res = coroutine.yield()
+            local name, res = coroutine.yield(true)
             c[res] = c[res] + 1
             if res ~= "nop" or cfg.verbose then
                 report(op, name, res, c[res], total)
@@ -85,8 +85,9 @@ local function run_hook(pkg, counter)
     local t = type(pkg.run)
     if t == "function" then
         vim.cmd("packadd " .. pkg.name)
-        local ok = pcall(pkg.run)
-        report("hook", pkg.name, ok and "ok" or "err")
+        local res = pcall(pkg.run) and "ok" or "err"
+        report("hook", pkg.name, res)
+        return counter and counter(pkg.name, res)
     elseif t == "string" then
         local args = {}
         for word in pkg.run:gmatch("%S+") do
@@ -97,6 +98,7 @@ local function run_hook(pkg, counter)
             report("hook", pkg.name, res)
             return counter and counter(pkg.name, res)
         end)
+        return true
     end
 end
 
