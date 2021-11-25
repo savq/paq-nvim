@@ -313,8 +313,9 @@ PAQ AUTOCOMMANDS                                            *paq-autocommands*
 Paq provides |User| events for its async operations, each event has the name
 `PaqDone` followed by the name of an operation:
  
-    `PaqDoneInstall` autocommands run after `PaqInstall`
-    `PaqDoneUpdate` autocommands run after `PaqUpdate`
+    `PaqDoneInstall` run after `PaqInstall`
+    `PaqDoneUpdate` runs after `PaqUpdate`
+    `PaqDoneSync` runs after `PaqSync`
 
 You can define an |autocmd| for these events using the usual syntax:
 >
@@ -323,8 +324,7 @@ You can define an |autocmd| for these events using the usual syntax:
 This is useful for bootstrapping or calling Paq in headless mode. See the
 section on |paq-bootstrapping|.
 
-NOTE: `PaqClean` is currently synchronous (there's a Windows/libuv problem) so
-there's no autocommand for it.
+NOTE: `PaqClean` is currently synchronous so there's no autocommand for it.
 
 
 ==============================================================================

@@ -48,10 +48,10 @@ local function new_counter()
     return coroutine.wrap(function(op, total)
         local c = { ok = 0, err = 0, nop = 0 }
         while c.ok + c.err + c.nop < total do
-            local name, res = coroutine.yield(true)
+            local name, res, over_op = coroutine.yield(true)
             c[res] = c[res] + 1
             if res ~= "nop" or cfg.verbose then
-                report(op, name, res, c[res], total)
+                report(over_op or op, name, res, c.ok + c.nop, total)
             end
         end
         local summary = (" Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or ""))
@@ -81,13 +81,13 @@ local function call_proc(process, args, cwd, cb)
     end
 end
 
-local function run_hook(pkg, counter)
+local function run_hook(pkg, counter, sync)
     local t = type(pkg.run)
     if t == "function" then
         vim.cmd("packadd " .. pkg.name)
         local res = pcall(pkg.run) and "ok" or "err"
         report("hook", pkg.name, res)
-        return counter and counter(pkg.name, res)
+        return counter and counter(pkg.name, res, sync)
     elseif t == "string" then
         local args = {}
         for word in pkg.run:gmatch("%S+") do
@@ -96,13 +96,13 @@ local function run_hook(pkg, counter)
         call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
             local res = ok and "ok" or "err"
             report("hook", pkg.name, res)
-            return counter and counter(pkg.name, res)
+            return counter and counter(pkg.name, res, sync)
         end)
         return true
     end
 end
 
-local function clone(pkg, counter)
+local function clone(pkg, counter, sync)
     local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
     if pkg.branch then
         vim.list_extend(args, { "-b", pkg.branch })
@@ -112,9 +112,9 @@ local function clone(pkg, counter)
         if ok then
             pkg.exists = true
             pkg.status = "installed"
-            return pkg.run and run_hook(pkg, counter) or counter(pkg.name, "ok")
+            return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
-            counter(pkg.name, "err")
+            counter(pkg.name, "err", sync)
         end
     end)
 end
@@ -132,18 +132,26 @@ local function get_git_hash(dir)
     return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
 end
 
-local function pull(pkg, counter)
+local function pull(pkg, counter, sync)
     local hash = get_git_hash(pkg.dir)
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
-            counter(pkg.name, "err")
+            counter(pkg.name, "err", sync)
         elseif get_git_hash(pkg.dir) ~= hash then
             pkg.status = "updated"
-            return pkg.run and run_hook(pkg, counter) or counter(pkg.name, "ok")
+            return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
-            counter(pkg.name, "nop")
+            counter(pkg.name, "nop", sync)
         end
     end)
+end
+
+local function clone_or_pull(pkg, counter)
+    if pkg.exists and not pkg.pin then
+        pull(pkg, counter, "update")
+    else
+        clone(pkg, counter, "install")
+    end
 end
 
 local function check_rm()
@@ -243,10 +251,10 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not (pkg.exists or pkg.status == "removed") end, packages)) end,
+    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists or pkg.status ~= "removed" end, packages)) end,
     update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
     clean = function() exe_op("remove", remove, check_rm()) end,
-    sync = function(self) self:clean() self:update() self:install() end,
+    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
