@@ -267,6 +267,10 @@ The options are the following:
   Default value: `"https://github.com/" .. "<GitHub-username>/<repo-name>"`
 
 
+file
+  Path to a local directory that contains a plugin.
+
+
 ------------------------------------------------------------------------------
 Package Name Inference~
 

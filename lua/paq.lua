@@ -94,14 +94,6 @@ local function run_hook(pkg)
 end
 
 local function install(pkg)
-    if pkg.exists then
-        return update_count("install", "nop", nil, num_pkgs)
-    end
-    local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
-    if pkg.branch then
-        vim.list_extend(args, { "-b", pkg.branch })
-    end
-    vim.list_extend(args, { pkg.dir })
     local post_install = function(ok)
         if ok then
             pkg.exists = true
@@ -112,7 +104,22 @@ local function install(pkg)
         end
         report("install", ok and "ok" or "err", pkg.name)
     end
-    call_proc("git", args, nil, post_install)
+    if pkg.exists then
+        return update_count("install", "nop", nil, num_pkgs)
+    end
+    if pkg.file then
+        local args = { "-s", "--force", vim.fn.fnamemodify(pkg.file, ':p:h'), pkg.dir }
+        call_proc("ln", args, nil, post_install)
+    else
+        local args = {
+            "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules"
+        }
+        if pkg.branch then
+            vim.list_extend(args, { "-b", pkg.branch })
+        end
+        vim.list_extend(args, { pkg.dir })
+        call_proc("git", args, nil, post_install)
+    end
 end
 
 local function get_git_hash(dir)
@@ -129,7 +136,7 @@ local function get_git_hash(dir)
 end
 
 local function update(pkg)
-    if not pkg.exists or pkg.pin then
+    if not pkg.exists or pkg.pin or pkg.file then
         return update_count("update", "nop", nil, num_pkgs)
     end
     local hash = get_git_hash(pkg.dir)
@@ -206,6 +213,9 @@ local function register(args)
     elseif args.url then
         name = args.url:gsub("%.git$", ""):match("/([%w-_.]+)$")
         src = args.url
+    elseif args.file then
+        name = args.file:match("/([%w-_.]+)$")
+        src  = args.file
     else
         name = args[1]:match("^[%w-]+/([%w-_.]+)$")
         src = args[1]
@@ -225,7 +235,8 @@ local function register(args)
         exists = vim.fn.isdirectory(dir) ~= 0,
         pin = args.pin,
         run = args.run or args.hook, -- DEPRECATE 1.0
-        url = args.url or "https://github.com/" .. args[1] .. ".git",
+        url = args.url or "https://github.com/" .. (args[1] or "") .. ".git",
+        file = args.file,
     }
     num_pkgs = num_pkgs + 1
 end

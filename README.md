@@ -88,6 +88,7 @@ Calling the `paq` function per package is deprecated. Users should now pass a li
 | run    | string   | Shell command to run after install/update                 |
 | run    | function | Lua function to run after install/update                  |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |
+| file   | string   | Path to a local directory, useful for testing plugins     |
 
 For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
