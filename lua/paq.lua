@@ -1,9 +1,4 @@
---[[ TODOS:
--- fix paq-clean regression (weird path in vimtex tests)
--- Respond all other issues
--- deprecate nvim 0.4
--- deprecate logfile
--- ]]
+-- TODO: deprecate `PaqRunHooks`
 
 local uv = vim.loop
 local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat") -- TODO: Deprecate
@@ -154,33 +149,51 @@ local function clone_or_pull(pkg, counter)
     end
 end
 
+local function walk_dir(path, fn)
+    local handle = uv.fs_scandir(path)
+    while handle do
+        local name, t = uv.fs_scandir_next(handle)
+        if not name then
+            break
+        end
+        if not fn(path .. "/" .. name, name, t) then
+            return
+        end
+    end
+    return true
+end
+
 local function check_rm()
     local to_remove = {}
-    for _, packdir in pairs({ "start/", "opt/" }) do
-        local path = cfg.path .. packdir
-        local handle = uv.fs_scandir(path)
-        while handle do
-            local name = uv.fs_scandir_next(handle)
-            if not name then
-                break
+    for _, packdir in pairs({ "start", "opt" }) do
+        walk_dir(cfg.path .. packdir, function(dir, name)
+            if name == "paq-nvim" then
+                return
             end
             local pkg = packages[name]
-            local dir = path .. name
             if not (pkg and pkg.dir == dir) then
                 table.insert(to_remove, { name = name, dir = dir })
             end
-        end
+            return true
+        end)
     end
     return to_remove
 end
 
+local function rmdir(dir, name, t)
+    if t == "directory" then
+        return walk_dir(dir, rmdir) and uv.fs_rmdir(dir)
+    else
+        return uv.fs_unlink(dir)
+    end
+end
+
 local function remove(p, counter)
-    if p.name ~= "paq-nvim" then
-        local ok = vim.fn.delete(p.dir, "rf") -- TODO(regression): This fails for weird paths
-        counter(p.name, ok == 0 and "ok" or "err")
-        if ok then
-            packages[p.name] = { name = p.name, status = "removed" }
-        end
+    local ok = walk_dir(p.dir, rmdir) and uv.fs_rmdir(p.dir)
+    counter(p.name, ok and "ok" or "err")
+
+    if ok then
+        packages[p.name] = { name = p.name, status = "removed" }
     end
 end
 
@@ -251,7 +264,7 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists or pkg.status ~= "removed" end, packages)) end,
+    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
     update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
     clean = function() exe_op("remove", remove, check_rm()) end,
     sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
