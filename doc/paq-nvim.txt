@@ -67,7 +67,7 @@ To get started with Paq:
     }
 <
 
- 3. Run the `:PaqInstall` command.
+ 3. Call the `:PaqInstall` command.
 
 That's it!
 
@@ -131,10 +131,6 @@ imported as `paq`, the functions are:
   has a `run` hook (functions and shell commands), it will execute the hook.
   This can be used when a hook fails, to run a hook without a package having
   changed, or for other debugging purposes.
-
-
-|paq.run_hooks|
-  DEPRECATED.
 
 
 |paq.list|                                                          *paq.list*
@@ -255,10 +251,6 @@ The options are the following:
     { "<name-of-package>", run=vim.fn["<name-of-viml-function>"] };
 <
   Default value: `nil`
-
-
-`hook`
-  Deprecated. Use the `run` option instead.
 
 
 `url`

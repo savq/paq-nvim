@@ -1,5 +1,3 @@
--- TODO: deprecate `PaqRunHooks`
-
 local uv = vim.loop
 local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat") -- TODO: Deprecate
 local cfg = {
@@ -30,7 +28,6 @@ vim.cmd([[
     command! PaqList     lua require('paq').list()
     command! PaqLogOpen  lua require('paq').log_open()
     command! PaqLogClean lua require('paq').log_clean()
-    command! PaqRunHooks lua require('paq'):run_hooks()  " TODO: DEPRECATE
     command! -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
 ]])
 
@@ -257,7 +254,7 @@ local function register(args)
         exists = vim.fn.isdirectory(dir) ~= 0,
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
-        run = args.run or args.hook, -- TODO(cleanup): remove `hook` option
+        run = args.run,
         url = args.url or "https://github.com/" .. args[1] .. ".git",
     }
 end
@@ -271,7 +268,6 @@ return setmetatable({
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
-    run_hooks = function(self) vim.tbl_map(run_hook, packages) return self end, -- TODO: DEPRECATE
     list = list,
     log_open = function() vim.cmd("sp " .. LOGFILE) end,
     log_clean = function() return assert(uv.fs_unlink(LOGFILE)) and vim.notify(" Paq: log file deleted") end,

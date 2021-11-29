@@ -81,9 +81,6 @@ Calling the `paq` function per package is deprecated. Users should now pass a li
 For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
 
-**NOTICE:**
-The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` instead.
-
 
 ## Related projects
 
