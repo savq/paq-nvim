@@ -49,7 +49,7 @@ USAGE                                                              *paq-usage*
 
 To get started with Paq:
 
- 1. Import the `paq-nvim` module:
+ 1. Import the `paq` module:
  >
     local paq = require("paq")    -- Module
 <
