@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.4.4.  Last change: 2021-11-15
+*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2021-11-29
 *paq-nvim*
 *paq*
 
@@ -246,7 +246,7 @@ The options are the following:
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
 
-  Note that in nvim 0.5, you can wrap a VimL function like so:
+  Note that in Lua, you can wrap a VimL function like so:
 >
     { "<name-of-package>", run=vim.fn["<name-of-viml-function>"] };
 <
@@ -443,7 +443,7 @@ The first option is the easiest, though your plugin can end up pretty deep
 in a directory hierarchy.
 
 The second option just requires you to concatenate the path to the plugin to
-your `runtimepath`. In Lua (nvim 0.5), this looks like:
+your `runtimepath`. In Lua, this looks like:
 >
     vim.opt.runtimepath:append("~/path/to/your/plugin")
 <

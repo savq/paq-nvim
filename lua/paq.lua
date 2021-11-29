@@ -1,5 +1,4 @@
 local uv = vim.loop
-local vim = vim.api.nvim_call_function("has", { "nvim-0.5" }) and vim or require("paq.compat") -- TODO: Deprecate
 local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     verbose = false,
