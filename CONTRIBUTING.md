@@ -16,8 +16,9 @@ For feature requests, write the title as an imperative:
 `Do foo instead of bar` or `Add foo`.
 This makes it easier to match them to their (possible) corresponding PR.
 In the body, try to nail down the scope of the feature, what it should do
-and what it shouldn't do. Also include if you're interested in adding the
-feature yourself.
+and what it shouldn't do.
+Make sure the feature doesn't already exist or is explicitly declared as something
+out of scope in the documentation.
 
 For questions, there are no restrictions. Ask away. Just write the title a
 question: `Can Paq do foo?`
@@ -26,11 +27,10 @@ question: `Can Paq do foo?`
 ## Development
 
 Once an issue has been discussed, a PR with the necessary changes can be opened.
-Paq is developed in a separate branch. PRs should fork from, and merge to `dev`.
 
-The PR should mention the related issue, and explain how the changes were made.
-Each commit message should also describe the specifics of each change.
-
+- Use a [feature branch](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow)
+  instead of the default/master branch.
+- Follow general git etiquette. Write meaningful commit messages.
 - Changes should only affect code related to the issue, avoid cosmetic changes.
 - Use [StyLua](https://github.com/JohnnyMorganz/StyLua) for code formatting.
 - Use [luacheck](https://github.com/mpeterv/luacheck) for linting.

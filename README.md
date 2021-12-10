@@ -13,7 +13,7 @@ Paq is a Neovim package manager written in Lua.
 ## Requirements
 
 - git
-- [Neovim](https://github.com/neovim/neovim) 0.4.4 (stable)
+- [Neovim](https://github.com/neovim/neovim) ≥ 0.5
 
 
 ## Installation
@@ -32,20 +32,9 @@ For Windows:
 git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\start\paq-nvim"
 ```
 
-## Bootstrapping 
+To install Paq automatically or to install your plugins in `--headless` mode
+see the documentation section `:h paq-bootstrapping`.
 
-Add the following snippet before your first usage of `paq-nvim` if you want to automatically
-install `paq-nvim`.
-
-```lua
-local fn = vim.fn
-
-local install_path = fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
-
-if fn.empty(fn.glob(install_path)) > 0 then
-  fn.system({'git', 'clone', '--depth=1', 'https://github.com/savq/paq-nvim.git', install_path})
-end
-```
 
 ## Usage
 
@@ -91,9 +80,6 @@ Calling the `paq` function per package is deprecated. Users should now pass a li
 
 For more details on each option, refer to the
 [documentation](https://github.com/savq/paq-nvim/tree/master/doc/paq-nvim.txt).
-
-**NOTICE:**
-The `hook` option is deprecated, and will be removed in Paq 1.0. Use `run` instead.
 
 
 ## Related projects

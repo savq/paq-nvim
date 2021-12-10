@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.4.4.  Last change: 2021-08-13
+*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2021-12-10
 *paq-nvim*
 *paq*
 
@@ -13,9 +13,11 @@ CONTENTS                                                        *paq-contents*
   Usage                                                  |paq-usage|
   Functions and Commands                                 |paq-commands|
   Package options                                        |paq-options|
+  Autocommands                                           |paq-autocommands|
   Paq directory                                          |paq-dir|
   Paq log                                                |paq-log|
   Troubleshooting                                        |paq-troubleshooting|
+  Bootstrapping                                          |paq-bootstrapping|
   Miscellaneous                                          |paq-misc|
     Using local packages
     Lazy loading
@@ -47,7 +49,7 @@ USAGE                                                              *paq-usage*
 
 To get started with Paq:
 
- 1. Import the `paq-nvim` module:
+ 1. Import the `paq` module:
  >
     local paq = require("paq")    -- Module
 <
@@ -65,7 +67,7 @@ To get started with Paq:
     }
 <
 
- 3. Run the `:PaqInstall` command.
+ 3. Call the `:PaqInstall` command.
 
 That's it!
 
@@ -123,11 +125,12 @@ imported as `paq`, the functions are:
   out of order.
 
 
-|paq.run_hooks|                                                *paq.run_hooks*
-                                                              *:PaqRunHooks*
-  Executes all `run` hooks (functions and shell commands). This can be used
-  when a hook fails, to run a hook without a package having changed, or for
-  other debugging purposes.
+|paq._run_hook|                                                *paq._run_hook*
+                                                               *:PaqRunHook*
+  Takes as single argument a string with the name of a package. If the package
+  has a `run` hook (functions and shell commands), it will execute the hook.
+  This can be used when a hook fails, to run a hook without a package having
+  changed, or for other debugging purposes.
 
 
 |paq.list|                                                          *paq.list*
@@ -164,7 +167,7 @@ imported as `paq`, the functions are:
     Boolean that determines whether paq should print `(up-to-date) pkg` for
     packages that were not updated.
 
-    Default value: `true`
+    Default value: `false`
 
   Note that unlike most Lua plugins, paq:setup is a method, not a function.
   This allows chaining it with the list of packages without needing to
@@ -243,15 +246,11 @@ The options are the following:
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
 
-  Note that in nvim 0.5, you can wrap a VimL function like so:
+  Note that in Lua, you can wrap a VimL function like so:
 >
     { "<name-of-package>", run=vim.fn["<name-of-viml-function>"] };
 <
   Default value: `nil`
-
-
-`hook`
-  Deprecated. Use the `run` option instead.
 
 
 `url`
@@ -299,14 +298,37 @@ we could call `paq` like:
 <
 
 ==============================================================================
+PAQ AUTOCOMMANDS                                            *paq-autocommands*
+                                                              *PaqDoneInstall*
+                                                               *PaqDoneUpdate*
+
+Paq provides |User| events for its async operations, each event has the name
+`PaqDone` followed by the name of an operation:
+ 
+    `PaqDoneInstall` run after `PaqInstall`
+    `PaqDoneUpdate` runs after `PaqUpdate`
+    `PaqDoneSync` runs after `PaqSync`
+
+You can define an |autocmd| for these events using the usual syntax:
+>
+    autocmd User PaqDoneInstall <your-commands>
+<
+This is useful for bootstrapping or calling Paq in headless mode. See the
+section on |paq-bootstrapping|.
+
+NOTE: `PaqClean` is currently synchronous so there's no autocommand for it.
+
+
+==============================================================================
 PAQ DIRECTORY                                                        *paq-dir*
 
 Paq installs packages using Neovim's |packages| convention, which itself
-follows the XDG Base Directory specification. You can find the directory
-where Paq installs packages by running the command:
+follows the XDG Base Directory specification. You can find the default
+directory where Paq installs packages by running the command:
 >
     :echo stdpath('data') .. '/site/pack/paqs'
 <
+
 If you have packages that aren't managed by Paq, you shouldn't put them on
 Paq's directory, since |paq.clean| could delete them.
 
@@ -320,13 +342,12 @@ The log file can be found at:
     :echo stdpath('cache') .. '/paq.log'
 <
 
-
 ==============================================================================
 TROUBLESHOOTING                                          *paq-troubleshooting*
 
 Here's a list of steps to take when something goes wrong with Paq:
 
-1. Check Paq's previous messages with |:mes|
+1. Check Paq's previous messages with |:messages|
 
 2. Check the list of installed and recently removed packages with |:PaqList|.
 
@@ -350,6 +371,64 @@ documentation.
 
 
 ==============================================================================
+BOOTSTRAPPING                                              *paq-bootstrapping*
+
+You can use Paq programmatically to install your packages in |--headless|
+mode. This can make it easier to set-up your development environment
+automatically.
+
+An example of how to "bootstrap" Paq is presented below:
+>
+  -- In ~/.config/nvim/lua/bootstrap.lua
+
+  local PKGS = {
+    "savq/paq-nvim";
+    -- List your packages here!
+  }
+
+  local function clone_paq()
+    local path = vim.fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
+    if vim.fn.empty(vim.fn.glob(path)) > 0 then
+      vim.fn.system {
+        'git',
+        'clone',
+        '--depth=1',
+        'https://github.com/savq/paq-nvim.git',
+        path
+      }
+    end
+  end
+
+  local function bootstrap_paq()
+    clone_paq()
+
+    -- Load Paq
+    vim.cmd('packadd paq-nvim')
+    local paq = require('paq')
+
+    -- Exit nvim after installing plugins
+    vim.cmd('autocmd User PaqDoneInstall quit')
+
+    -- Read and install packages
+    paq(PKGS)
+    paq.install()
+  end
+
+  return { bootstrap_paq = bootstrap_paq }
+<
+
+Now, installing your packages should only require calling the `bootstrap`
+function from your shell:
+>
+    nvim --headless -u NONE -c 'lua require("bootstrap").bootstrap_paq()'
+<
+
+You can adjust the script above to suit your needs. You might only want to
+clone Paq automatically without installing packages, or clone packages only if
+Paq is already installed.
+
+
+==============================================================================
 MISCELLANEOUS                                                       *paq-misc*
 
 These are some features related to using packages, which probably don't
@@ -370,7 +449,7 @@ The first option is the easiest, though your plugin can end up pretty deep
 in a directory hierarchy.
 
 The second option just requires you to concatenate the path to the plugin to
-your `runtimepath`. In Lua (nvim 0.5), this looks like:
+your `runtimepath`. In Lua, this looks like:
 >
     vim.opt.runtimepath:append("~/path/to/your/plugin")
 <
@@ -396,8 +475,8 @@ If you've checked all that and still think that the package _has_ to be lazy
 loaded, you can declare the package as optional, and call |packadd| when
 needed.
 
-You can use an |autocommand| to do the lazy loading, but at the time of
-writing there isn't a way to declare an autocommand using only Lua.
+You can use an |autocommand| to do the lazy loading, but currently there isn't
+a way to declare an autocommand using only Lua.
 
 Example:
 >
