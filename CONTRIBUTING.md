@@ -16,8 +16,9 @@ For feature requests, write the title as an imperative:
 `Do foo instead of bar` or `Add foo`.
 This makes it easier to match them to their (possible) corresponding PR.
 In the body, try to nail down the scope of the feature, what it should do
-and what it shouldn't do. Also include if you're interested in adding the
-feature yourself.
+and what it shouldn't do.
+Make sure the feature doesn't already exist or is explicitly declared as something
+out of scope in the documentation.
 
 For questions, there are no restrictions. Ask away. Just write the title a
 question: `Can Paq do foo?`

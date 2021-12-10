@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2021-11-29
+*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2021-12-10
 *paq-nvim*
 *paq*
 
@@ -16,8 +16,8 @@ CONTENTS                                                        *paq-contents*
   Autocommands                                           |paq-autocommands|
   Paq directory                                          |paq-dir|
   Paq log                                                |paq-log|
-  Bootstrapping                                          |paq-bootstrapping|
   Troubleshooting                                        |paq-troubleshooting|
+  Bootstrapping                                          |paq-bootstrapping|
   Miscellaneous                                          |paq-misc|
     Using local packages
     Lazy loading
@@ -343,6 +343,34 @@ The log file can be found at:
 <
 
 ==============================================================================
+TROUBLESHOOTING                                          *paq-troubleshooting*
+
+Here's a list of steps to take when something goes wrong with Paq:
+
+1. Check Paq's previous messages with |:messages|
+
+2. Check the list of installed and recently removed packages with |:PaqList|.
+
+3. If you see an error message or a package isn't listed as expected, check
+  Paq's log with |:PaqLogOpen|. The log records everything written to `stderr`
+  so you might want to look from the bottom up.
+
+4. If you think the error wasn't caused by git (or another external program
+  called with a hook), consider opening an issue on the paq-nvim GitHub
+  repository.
+
+Some common issues are listed below.
+
+------------------------------------------------------------------------------
+GitHub Credentials~
+
+Paq clones repositories using HTTPS, which might require you to provide your
+GitHub credentials. It's _strongly_ encouraged to set-up your GitHub
+credentials before using Paq. Consult the relevant git and GitHub
+documentation.
+
+
+==============================================================================
 BOOTSTRAPPING                                              *paq-bootstrapping*
 
 You can use Paq programmatically to install your packages in |--headless|
@@ -361,8 +389,13 @@ An example of how to "bootstrap" Paq is presented below:
   local function clone_paq()
     local path = vim.fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
     if vim.fn.empty(vim.fn.glob(path)) > 0 then
-      vim.fn.system{'git', 'clone', '--depth=1',
-        'https://github.com/savq/paq-nvim.git', path} 
+      vim.fn.system {
+        'git',
+        'clone',
+        '--depth=1',
+        'https://github.com/savq/paq-nvim.git',
+        path
+      }
     end
   end
 
@@ -387,39 +420,12 @@ An example of how to "bootstrap" Paq is presented below:
 Now, installing your packages should only require calling the `bootstrap`
 function from your shell:
 >
-    nvim --headless -u NONE -c 'require("bootstrap").bootstrap_paq()'
+    nvim --headless -u NONE -c 'lua require("bootstrap").bootstrap_paq()'
 <
 
 You can adjust the script above to suit your needs. You might only want to
-clone Paq automatically without installing packages, or vice-versa.
-
-
-==============================================================================
-TROUBLESHOOTING                                          *paq-troubleshooting*
-
-Here's a list of steps to take when something goes wrong with Paq:
-
-1. Check Paq's previous messages with |:mes|
-
-2. Check the list of installed and recently removed packages with |:PaqList|.
-
-3. If you see an error message or a package isn't listed as expected, check
-  Paq's log with |:PaqLogOpen|. The log records everything written to `stderr`
-  so you might want to look from the bottom up.
-
-4. If you think the error wasn't caused by git (or another external program
-  called with a hook), consider opening an issue on the paq-nvim GitHub
-  repository.
-
-Some common issues are listed below.
-
-------------------------------------------------------------------------------
-GitHub Credentials~
-
-Paq clones repositories using HTTPS, which might require you to provide your
-GitHub credentials. It's _strongly_ encouraged to set-up your GitHub
-credentials before using Paq. Consult the relevant git and GitHub
-documentation.
+clone Paq automatically without installing packages, or clone packages only if
+Paq is already installed.
 
 
 ==============================================================================
@@ -469,8 +475,8 @@ If you've checked all that and still think that the package _has_ to be lazy
 loaded, you can declare the package as optional, and call |packadd| when
 needed.
 
-You can use an |autocommand| to do the lazy loading, but at the time of
-writing there isn't a way to declare an autocommand using only Lua.
+You can use an |autocommand| to do the lazy loading, but currently there isn't
+a way to declare an autocommand using only Lua.
 
 Example:
 >

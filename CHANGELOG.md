@@ -2,6 +2,13 @@ Visit the [releases page](https://github.com/savq/paq-nvim/releases) for more de
 
 # Deprecations
 
+### v1.0.0.
+
+- The `hook` option was removed (use `run` instead).
+- `:PaqRunHooks` was replaced by `:PaqRunHook`
+- `paq-nvim` module alias was removed. call `require 'paq'` instead.
+
+See #87 for more details.
 
 ### v0.9.0.
 
