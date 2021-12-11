@@ -14,7 +14,8 @@ local messages = {
 
 -- This is done only once. Doing it for every process seems overkill
 local env = {}
-for var, val in pairs(uv.os_environ()) do
+local envfn = vim.fn.has('nvim-0.6') == 1 and uv.os_environ or vim.fn.environ  -- compat
+for var, val in pairs(envfn()) do
     table.insert(env, ("%s=%s"):format(var, val))
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
