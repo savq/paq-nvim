@@ -49,7 +49,7 @@ local function new_counter()
         local summary = (" Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or ""))
         vim.notify(summary:format(op, c.ok, c.err, c.nop))
         vim.cmd("packloadall! | silent! helptags ALL")
-        vim.cmd("doautocmd User PaqDone" .. op)
+        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
     end)
 end
 
@@ -197,7 +197,7 @@ end
 local function exe_op(op, fn, pkgs)
     if #pkgs == 0 then
         vim.notify(" Paq: Nothing to " .. op)
-        vim.cmd("doautocmd User PaqDone" .. op)
+        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
         return
     end
     local counter = new_counter()
