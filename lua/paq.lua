@@ -165,7 +165,7 @@ local function check_rm()
     for _, packdir in pairs({ "start", "opt" }) do
         walk_dir(cfg.path .. packdir, function(dir, name)
             if name == "paq-nvim" then
-                return
+                return true
             end
             local pkg = packages[name]
             if not (pkg and pkg.dir == dir) then
