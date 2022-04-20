@@ -257,7 +257,7 @@ The options are the following:
   String indicating the URL of the git repository.
 
   If the `url` is set, Paq will try to infer the name of the repository from
-  it. For example, for `url="htttps://domain.com/some/path/repo-vim.git"` it
+  it. For example, for `url="https://domain.com/some/path/repo-vim.git"` it
   would be `repo-vim`.
 
   For convenience, if `url` is unset, Paq will try to find the repository on
