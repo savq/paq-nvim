@@ -53,14 +53,14 @@ local function new_counter()
     end)
 end
 
-local function call_proc(process, args, cwd, cb)
+local function call_proc(process, args, cwd, cb, print_stdout)
     local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
     stderr:open(log)
     local handle, pid
     handle, pid = uv.spawn(
         process,
-        { args = args, cwd = cwd, stdio = { nil, nil, stderr }, env = env },
+        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = env },
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -71,6 +71,12 @@ local function call_proc(process, args, cwd, cb)
     if not handle then
         vim.notify(string.format(" Paq: Failed to spawn %s (%s)", process, pid))
     end
+end
+
+local function log(message)
+    local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
+    uv.fs_write(log, message .. '\n')
+    uv.fs_close(log)
 end
 
 local function run_hook(pkg, counter, sync)
@@ -125,15 +131,20 @@ local function get_git_hash(dir)
 end
 
 local function pull(pkg, counter, sync)
-    local hash = get_git_hash(pkg.dir)
+    local prev_hash = get_git_hash(pkg.dir)
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
             counter(pkg.name, "err", sync)
-        elseif get_git_hash(pkg.dir) ~= hash then
-            pkg.status = "updated"
-            return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
-            counter(pkg.name, "nop", sync)
+            local cur_hash = get_git_hash(pkg.dir)
+            if cur_hash ~= prev_hash then
+                log(pkg.name .. " updating...")
+                call_proc("git", { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash }, pkg.dir, function(ok) end, true)
+                pkg.status = "updated"
+                return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
+            else
+                counter(pkg.name, "nop", sync)
+            end
         end
     end)
 end
