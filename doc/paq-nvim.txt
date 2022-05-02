@@ -62,7 +62,7 @@ To get started with Paq:
 
         "neovim/nvim-lspconfig";
         "nvim-treesitter/nvim-treesitter"
-        "hrsh7th/nvim-compe";
+        "hrsh7th/nvim-cmp";
         "lervag/vimtex";
     }
 <
