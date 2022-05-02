@@ -152,7 +152,7 @@ end
 local function clone_or_pull(pkg, counter)
     if pkg.exists and not pkg.pin then
         pull(pkg, counter, "update")
-    else
+    elseif not pkg.exists then
         clone(pkg, counter, "install")
     end
 end
