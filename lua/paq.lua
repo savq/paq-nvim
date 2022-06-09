@@ -3,7 +3,8 @@ local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     verbose = false,
 }
-local LOGFILE = vim.fn.stdpath("cache") .. "/paq.log"
+local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
+local logfile = logpath .. "/paq.log"
 local packages = {} -- 'name' = {options...} pairs
 local messages = {
     install = { ok = "Installed", err = "Failed to install" },
@@ -54,7 +55,7 @@ local function new_counter()
 end
 
 local function call_proc(process, args, cwd, cb, print_stdout)
-    local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
+    local log = uv.fs_open(logfile, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
     stderr:open(log)
     local handle, pid
@@ -74,7 +75,7 @@ local function call_proc(process, args, cwd, cb, print_stdout)
 end
 
 local function log(message)
-    local log = uv.fs_open(LOGFILE, "a+", 0x1A4)
+    local log = uv.fs_open(logfile, "a+", 0x1A4)
     uv.fs_write(log, message .. '\n')
     uv.fs_close(log)
 end
@@ -280,8 +281,8 @@ return setmetatable({
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
     list = list,
-    log_open = function() vim.cmd("sp " .. LOGFILE) end,
-    log_clean = function() return assert(uv.fs_unlink(LOGFILE)) and vim.notify(" Paq: log file deleted") end,
+    log_open = function() vim.cmd("sp " .. logfile) end,
+    log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
     register = function(pkg) register(pkg) end,
     paq = register, -- TODO: deprecate. not urgent
 }, {__call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) return self end,
