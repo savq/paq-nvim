@@ -75,12 +75,6 @@ local function call_proc(process, args, cwd, cb, print_stdout)
     end
 end
 
-local function log(message)
-    local log = uv.fs_open(logfile, "a+", 0x1A4)
-    uv.fs_write(log, message .. '\n')
-    uv.fs_close(log)
-end
-
 local function run_hook(pkg, counter, sync)
     local t = type(pkg.run)
     if t == "function" then
@@ -132,6 +126,27 @@ local function get_git_hash(dir)
     return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
 end
 
+local function log_update_changes(pkg, prev_hash, cur_hash)
+    local output = {"\n\n" .. pkg.name .. " updated:\n"}
+    local stdout = uv.new_pipe()
+    local options = {
+        args = {"log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash},
+        cwd = pkg.dir, stdio = {nil, stdout, nil},
+    }
+    local handle
+    handle, _ = uv.spawn('git', options, function(code)
+        assert(code == 0, "Exited(" .. code .. ")")
+        handle:close()
+        local log = uv.fs_open(logfile, "a+", 0x1A4)
+        uv.fs_write(log, output, nil, nil)
+        uv.fs_close(log)
+    end)
+    stdout:read_start(function(err, data)
+        assert(not err, err)
+        table.insert(output, data)
+    end)
+end
+
 local function pull(pkg, counter, sync)
     local prev_hash = get_git_hash(pkg.dir)
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
@@ -140,8 +155,7 @@ local function pull(pkg, counter, sync)
         else
             local cur_hash = get_git_hash(pkg.dir)
             if cur_hash ~= prev_hash then
-                log(pkg.name .. " updating...")
-                call_proc("git", { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash }, pkg.dir, function(ok) end, true)
+                log_update_changes(pkg, prev_hash, cur_hash)
                 pkg.status = "updated"
                 return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
             else
