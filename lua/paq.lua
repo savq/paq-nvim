@@ -51,6 +51,7 @@ local function new_counter()
         vim.notify(summary:format(op, c.ok, c.err, c.nop))
         vim.cmd("packloadall! | silent! helptags ALL")
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
+        return true
     end)
 end
 
