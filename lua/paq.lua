@@ -22,14 +22,14 @@ end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
 vim.cmd([[
-    command! PaqInstall  lua require('paq'):install()
-    command! PaqUpdate   lua require('paq'):update()
-    command! PaqClean    lua require('paq'):clean()
-    command! PaqSync     lua require('paq'):sync()
-    command! PaqList     lua require('paq').list()
-    command! PaqLogOpen  lua require('paq').log_open()
-    command! PaqLogClean lua require('paq').log_clean()
-    command! -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
+    command! -bar PaqInstall  lua require('paq'):install()
+    command! -bar PaqUpdate   lua require('paq'):update()
+    command! -bar PaqClean    lua require('paq'):clean()
+    command! -bar PaqSync     lua require('paq'):sync()
+    command! -bar PaqList     lua require('paq').list()
+    command! -bar PaqLogOpen  lua require('paq').log_open()
+    command! -bar PaqLogClean lua require('paq').log_clean()
+    command! -bar -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
 ]])
 
 local function report(op, name, res, n, total)
