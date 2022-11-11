@@ -267,6 +267,9 @@ local function register(args)
     if type(args) == "string" then
         args = { args }
     end
+    if not args.url and args[1]:match("^https?://") then
+        args.url = args[1]
+    end
     local name, src = parse_name(args)
     if not name then
         return vim.notify(" Paq: Failed to parse " .. src, vim.log.levels.ERROR)
