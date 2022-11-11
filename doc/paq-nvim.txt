@@ -1,4 +1,4 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2021-12-10
+*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2022-11-11
 *paq-nvim*
 *paq*
 
@@ -197,17 +197,19 @@ The options are the following:
 
 `1` (package string)
 
-  The first entry may be a string like `"<GitHub-username>/<repo-name>"`
-  indicating a GitHub repository. The name of the package will be inferred from
-  this string, i.e. `<repo-name>`.  If `url` is unset, this option is
-  required.
+  The first field may be a string like `"<GitHub-username>/<repo-name>"`
+  indicating a GitHub repository or it may be a URL. If it's a GitHub
+  repository, the name of the package will be inferred from this string,
+  i.e. `<repo-name>`. If it's a URL, it'll be treated the same as the `url`
+  option below. If `url` is unset, this option is required.
 
   Default value: `nil`
 
 
 `as`
-  String indicating the alias or local name of the package. This determines
-  the name of the directory where Paq will download the package.
+  String indicating the alias of a package. This determines the name of the
+  directory where Paq will download the package. If this option is not given,
+  Paq will try to infer the name from the package string `1` or `url`.
 
   Default value: `nil`
 
@@ -240,8 +242,8 @@ The options are the following:
   a package. Useful for packages that require extra configuration or
   building binaries.
 
-  If a string, Paq will execute the string as a shell command in the 
-  directory of the package.
+  If a string, Paq will execute the string as a shell command in the
+  directory of the package (not the current working directory).
 
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.

@@ -45,9 +45,12 @@ require "paq" {
     "savq/paq-nvim";                  -- Let Paq manage itself
 
     "neovim/nvim-lspconfig";          -- Mind the semi-colons
+
     "hrsh7th/nvim-cmp";
 
     {"lervag/vimtex", opt=true};      -- Use braces when passing options
+
+    { "nvim-treesitter/nvim-treesitter", run = function() vim.cmd "TSUpdate" end },
 }
 ```
 
@@ -63,7 +66,7 @@ Calling the `paq` function per package is deprecated. Users should now pass a li
 - `PaqInstall`: Install all packages listed in your configuration.
 - `PaqUpdate`: Update all packages already on your system (it won't implicitly install them).
 - `PaqClean`: Remove all packages (in Paq's directory) that aren't listed on your configuration.
-- `PaqSync`: Execute the three operations listed above.
+- `PaqSync`: Execute the three commands listed above.
 
 
 ## Options
