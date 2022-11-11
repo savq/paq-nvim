@@ -50,7 +50,7 @@ require "paq" {
 
     {"lervag/vimtex", opt=true};      -- Use braces when passing options
 
-    { "nvim-treesitter/nvim-treesitter", run = function() vim.cmd "TSUpdate" end },
+    {"nvim-treesitter/nvim-treesitter", run=function() vim.cmd "TSUpdate" end};
 }
 ```
 
