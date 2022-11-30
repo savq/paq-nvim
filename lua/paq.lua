@@ -301,7 +301,7 @@ return setmetatable({
     list = list,
     log_open = function() vim.cmd("sp " .. logfile) end,
     log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
-    register = function(pkg) register(pkg) end,
+    register = register,
     paq = register, -- TODO: deprecate. not urgent
 }, {__call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) return self end,
 })
