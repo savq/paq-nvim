@@ -99,7 +99,7 @@ imported as `paq`, the functions are:
 
 |paq.install|                                                    *paq.install*
                                                                *:PaqInstall*
-  Installs all packages listed in your configuration - if a package is already
+  Installs all packages listed in your configuration. If a package is already
   installed, the function ignores it. If a package has a `run` argument, it'll
   be executed after the package is installed.
 
@@ -477,7 +477,7 @@ If you've checked all that and still think that the package _has_ to be lazy
 loaded, you can declare the package as optional, and call |packadd| when
 needed.
 
-You can use an |autocommand| to do the lazy loading:
+Since Neovim version 0.7, you can use an |autocommand| to do the lazy loading:
 
 Example:
 >lua
