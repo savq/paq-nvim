@@ -1,6 +1,7 @@
 local uv = vim.loop
 local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
+    opt = false,
     verbose = false,
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
@@ -276,7 +277,8 @@ local function register(args)
     elseif packages[name] then
         return
     end
-    local dir = cfg.path .. (args.opt and "opt/" or "start/") .. name
+    local opt = (args.opt == nil or args.opt) and cfg.opt
+    local dir = cfg.path .. (opt and "opt/" or "start/") .. name
     packages[name] = {
         name = name,
         branch = args.branch,

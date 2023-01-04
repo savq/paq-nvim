@@ -163,6 +163,13 @@ imported as `paq`, the functions are:
 
     Default value: |paq-dir|
 
+    `opt`
+    Boolean that changes if, by default, plugins are eagerly loaded or lazy
+    loaded. If set, the package will be in the optional packages
+    directory. See |packages| and |packadd|.
+
+    Default value: `false`
+
     `verbose`
     Boolean that determines whether paq should print `(up-to-date) pkg` for
     packages that were not updated.
@@ -306,7 +313,7 @@ PAQ AUTOCOMMANDS                                            *paq-autocommands*
 
 Paq provides |User| events for its async operations, each event has the name
 `PaqDone` followed by the name of an operation:
- 
+
     `PaqDoneInstall` run after `PaqInstall`
     `PaqDoneUpdate` runs after `PaqUpdate`
     `PaqDoneSync` runs after `PaqSync`
