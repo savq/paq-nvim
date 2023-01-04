@@ -3,6 +3,7 @@ local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     opt = false,
     verbose = false,
+    url_format = 'https://github.com/%s.git'
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
@@ -287,7 +288,7 @@ local function register(args)
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
         run = args.run,
-        url = args.url or "https://github.com/" .. args[1] .. ".git",
+        url = args.url or string.format(cfg.url_format, args[1]),
     }
 end
 
@@ -297,7 +298,7 @@ return setmetatable({
     update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
     clean = function() exe_op("remove", remove, check_rm()) end,
     sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
-    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    setup = function(args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
     list = list,
