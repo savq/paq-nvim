@@ -3,6 +3,7 @@ local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     opt = false,
     verbose = false,
+    url_format = 'https://github.com/%s.git'
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
@@ -287,7 +288,7 @@ local function register(args)
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
         run = args.run,
-        url = args.url or "https://github.com/" .. args[1] .. ".git",
+        url = args.url or string.format(cfg.url_format, args[1]),
     }
 end
 
