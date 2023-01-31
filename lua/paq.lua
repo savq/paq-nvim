@@ -3,23 +3,17 @@ local cfg = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     opt = false,
     verbose = false,
-    url_format = 'https://github.com/%s.git'
+    url_format = "https://github.com/%s.git",
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
-local packages = {} -- 'name' = {options...} pairs
-local messages = {
-    install = { ok = "Installed", err = "Failed to install" },
-    update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
-    remove = { ok = "Removed", err = "Failed to remove" },
-    hook = { ok = "Ran hook for", err = "Failed to run hook for" },
-}
+local packages = {} -- "name" = {options...} pairs
 
 -- This is done only once. Doing it for every process seems overkill
 local env = {}
-local envfn = vim.fn.has('nvim-0.6') == 1 and uv.os_environ or vim.fn.environ  -- compat
+local envfn = vim.fn.has("nvim-0.6") == 1 and uv.os_environ or vim.fn.environ
 for var, val in pairs(envfn()) do
-    table.insert(env, ("%s=%s"):format(var, val))
+    table.insert(env, string.format("%s=%s", var, val))
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
@@ -35,8 +29,17 @@ vim.cmd([[
 ]])
 
 local function report(op, name, res, n, total)
-    local count = n and (" [%d/%d]"):format(n, total) or ""
-    vim.notify((" Paq:%s %s %s"):format(count, messages[op][res], name), res == "err" and vim.log.levels.ERROR)
+    local messages = {
+        install = { ok = "Installed", err = "Failed to install" },
+        update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
+        remove = { ok = "Removed", err = "Failed to remove" },
+        hook = { ok = "Ran hook for", err = "Failed to run hook for" },
+    }
+    local count = n and string.format(" [%d/%d]", n, total) or ""
+    vim.notify(
+        string.format(" Paq:%s %s %s", count, messages[op][res], name),
+        res == "err" and vim.log.levels.ERROR
+    )
 end
 
 local function new_counter()
@@ -49,8 +52,8 @@ local function new_counter()
                 report(over_op or op, name, res, c.ok + c.nop, total)
             end
         end
-        local summary = (" Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or ""))
-        vim.notify(summary:format(op, c.ok, c.err, c.nop))
+        local summary = " Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or "")
+        vim.notify(string.format(summary, op, c.ok, c.err, c.nop))
         vim.cmd("packloadall! | silent! helptags ALL")
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
         return true
@@ -206,7 +209,7 @@ end
 local function find_unlisted()
     local unlisted = {}
     -- TODO(breaking): Replace with `vim.fs.dir`
-    for _, packdir in pairs({ "start", "opt" }) do
+    for _, packdir in pairs { "start", "opt" } do
         local path = cfg.path .. packdir
         local handle = uv.fs_scandir(path)
         while handle do
@@ -249,17 +252,16 @@ end
 -- stylua: ignore
 local function list()
     local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
-    table.sort(installed, function(a, b) return a.name < b.name end)
-
     local removed = vim.tbl_filter(function(pkg) return pkg.status == "removed" end, packages)
-    table.sort(removed, function(a, b) return a.name < b.name end)
-
-    local sym_tbl = { installed = "+", updated = "*", removed = " " }
-    for header, pkgs in pairs({ ["Installed packages:"] = installed, ["Recently removed:"] = removed }) do
+    local sort_by_name = function(a, b) return a.name < b.name end
+    table.sort(installed, sort_by_name)
+    table.sort(removed, sort_by_name)
+    local markers = { installed = "+", updated = "*" }
+    for header, pkgs in pairs { ["Installed packages:"] = installed, ["Recently removed:"] = removed } do
         if #pkgs ~= 0 then
             print(header)
             for _, pkg in ipairs(pkgs) do
-                print(" ", sym_tbl[pkg.status] or " ", pkg.name)
+                print(" ", markers[pkg.status] or " ", pkg.name)
             end
         end
     end
