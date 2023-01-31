@@ -175,49 +175,59 @@ local function clone_or_pull(pkg, counter)
     end
 end
 
-local function walk_dir(path, fn)
-    local handle = uv.fs_scandir(path)
-    while handle do
-        local name, t = uv.fs_scandir_next(handle)
-        if not name then
-            break
+-- Return an interator that walks `dir` in post-order.
+local function walkdir(dir)
+    return coroutine.wrap(function()
+        local handle = uv.fs_scandir(dir)
+        while handle do
+            local name, t = uv.fs_scandir_next(handle)
+            if not name then
+                return
+            elseif t == "directory" then
+                for child, t in walkdir(dir .. "/" .. name) do
+                    coroutine.yield(child, t)
+                end
+            end
+            coroutine.yield(dir .. "/" .. name, t)
         end
-        if not fn(path .. "/" .. name, name, t) then
-            return
-        end
-    end
-    return true
+    end)
 end
 
-local function check_rm()
-    local to_remove = {}
+local function rmdir(dir)
+    for name, t in walkdir(dir) do
+        local ok = (t == "directory") and uv.fs_rmdir(name) or uv.fs_unlink(name)
+        if not ok then
+            return ok
+        end
+    end
+    return uv.fs_rmdir(dir)
+end
+
+local function find_unlisted()
+    local unlisted = {}
+    -- TODO(breaking): Replace with `vim.fs.dir`
     for _, packdir in pairs({ "start", "opt" }) do
-        walk_dir(cfg.path .. packdir, function(dir, name)
-            if name == "paq-nvim" then
-                return true
+        local path = cfg.path .. packdir
+        local handle = uv.fs_scandir(path)
+        while handle do
+            local name, t = uv.fs_scandir_next(handle)
+            if t == "directory" and name ~= "paq-nvim" then
+                local dir = path .. "/" .. name
+                local pkg = packages[name]
+                if not pkg or pkg.dir ~= dir then
+                    table.insert(unlisted, { name = name, dir = dir })
+                end
+            elseif not name then
+                break
             end
-            local pkg = packages[name]
-            if not (pkg and pkg.dir == dir) then
-                table.insert(to_remove, { name = name, dir = dir })
-            end
-            return true
-        end)
+        end
     end
-    return to_remove
-end
-
-local function rmdir(dir, name, t)
-    if t == "directory" then
-        return walk_dir(dir, rmdir) and uv.fs_rmdir(dir)
-    else
-        return uv.fs_unlink(dir)
-    end
+    return unlisted
 end
 
 local function remove(p, counter)
-    local ok = walk_dir(p.dir, rmdir) and uv.fs_rmdir(p.dir)
+    local ok = rmdir(p.dir)
     counter(p.name, ok and "ok" or "err")
-
     if ok then
         packages[p.name] = { name = p.name, status = "removed" }
     end
@@ -296,7 +306,7 @@ end
 return setmetatable({
     install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
     update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
-    clean = function() exe_op("remove", remove, check_rm()) end,
+    clean = function() exe_op("remove", remove, find_unlisted()) end,
     sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
