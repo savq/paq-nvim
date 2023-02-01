@@ -1,5 +1,5 @@
-*paq-nvim.txt*  Package manager for Neovim >= v0.5.  Last change: 2022-11-11
-*paq-nvim*
+*paq-nvim.txt*  Package manager for Neovim >= v0.5.
+*paq-nvim*                                             Last change: 2023-02-08
 *paq*
 
 Author: Sergio Alejandro Vargas    <savargasqu+git@unal.edu.co>
@@ -51,20 +51,19 @@ To get started with Paq:
 
  1. Import the `paq` module:
  >lua
-    local paq = require("paq")    -- Module
+  local paq = require("paq")
 <
 
  2. Call the paq module with a list of packages you want to install.
     Each entry in the list is a package repository, for example:
 >lua
-    paq {
-        "savq/paq-nvim";            -- Paq manages itself
+  paq {
+    "savq/paq-nvim", -- Paq manages itself
 
-        "neovim/nvim-lspconfig";
-        "nvim-treesitter/nvim-treesitter"
-        "hrsh7th/nvim-cmp";
-        "lervag/vimtex";
-    }
+    "neovim/nvim-lspconfig",
+    "nvim-treesitter/nvim-treesitter",
+    "lervag/vimtex",
+  }
 <
 
  3. Call the `:PaqInstall` command.
@@ -93,8 +92,9 @@ imported as `paq`, the functions are:
   value of the table, and all other options will be set to their default
   values.
 
-  Note: Lua can elide parentheses when passing a table to a function,
-  so you can always call `paq` without parentheses.
+  Note: Lua can elide parentheses when passing a single table argument to a
+  function, so you can always call `paq` without parentheses.
+  See |luaref-langFuncCalls|.
 
 
 |paq.install|                                                    *paq.install*
@@ -136,7 +136,7 @@ imported as `paq`, the functions are:
 |paq.list|                                                          *paq.list*
                                                                   *:PaqList*
   Lists installed packages as well as packages that were recently removed.
-  Recently installed or updated packages are marked with a `+` and `*`,
+  Recently installed or updated packages are marked with `+` and `*`,
   respectively.
 
 
@@ -170,6 +170,16 @@ imported as `paq`, the functions are:
 
     Default value: `false`
 
+    `url_format`
+    String that determines the format used for constructing the URL of a
+    package repository. It uses the Lua format syntax, and should only receive
+    a single string argument `"%s"` (`[1]` in |paq-options| below).
+
+    This can be set to use SSH instead of HTTPS, to use a different forge
+    than GitHub, etc.
+
+    Default value: `"https://github.com/%s.git"`
+
     `verbose`
     Boolean that determines whether paq should print `(up-to-date) pkg` for
     packages that were not updated.
@@ -178,13 +188,13 @@ imported as `paq`, the functions are:
 
   Note that unlike most Lua plugins, paq:setup is a method, not a function.
   This allows chaining it with the list of packages without needing to
-  bind `"paq"` locally, for example:
+  bind the module `"paq"` locally, for example:
 >lua
-    require("paq"):setup({verbose=false}) {
-        "savq/paq-nvim";
-        "neovim/nvim-lspconfig";
-        "nvim-treesitter/nvim-treesitter"
-    }
+  require("paq"):setup { verbose = false } {
+    "savq/paq-nvim",
+    "neovim/nvim-lspconfig",
+    "nvim-treesitter/nvim-treesitter",
+  }
 <
 
 |paq.paq|
@@ -200,77 +210,70 @@ Each element in the list of packages can be a table with named options.
 These options don't need to be in any particular order, except for the package
 string (see 1 below).
 
-The options are the following:
+The options and their types are the following:
 
-`1` (package string)
-
-  The first field may be a string like `"<GitHub-username>/<repo-name>"`
-  indicating a GitHub repository, or it may be a URL. If it's a GitHub
-  repository, the name of the package will be inferred from this string,
-  i.e. `<repo-name>`. If it's a URL, it'll be treated the same as the `url`
-  option below. If `url` is unset, this option is required.
-
-  Default value: `nil`
-
-
-`as`
-  String indicating the alias of a package. This determines the name of the
-  directory where Paq will download the package. If this option is not given,
-  Paq will try to infer the name from the package string `1` or `url`.
+`[1]` : string
+  The first field may be a shorthand indicating a GitHub repostory or a URL.
+  If it's a shorthand of the form `"<GitHub-username>/<repo-name>"`, it'll be
+  expanded to the URL of a GitHub repostory (this can be configured with the
+  `url_format` setup option). If it's a URL, it'll act like the `url` option
+  below. Either way, the local name of the package will be inferred based on
+  the last component of the path.
 
   Default value: `nil`
 
 
-`branch`
-  String with the name of a branch of the git repository. Paq will fetch
-  and pull changes from this branch.
+`as` : string
+  Determines the local name of the directory where Paq will download the
+  package. If unset, Paq will try to infer a name from `url` or `[1]`.
 
   Default value: `nil`
 
 
-`opt`
-  Boolean indicating whether the package is optional or not. If set,
-  the package will be in the optional packages directory. See |packages|
-  and |packadd|.
+`branch` : string
+  Indicates the branch of the git repository. Paq will fetch and pull changes
+  from this branch.
+
+  Default value: `nil`
+
+
+`opt` : boolean
+  Indicates whether the package is optional or not. If set, the package will
+  be in the optional packages directory. See |packages| and |packadd|.
 
   Default value: `false`
 
 
-`pin`
-  Boolean indicating whether the package is pinned or not. If a package is
-  pinned then it will be installed, but it will not be updated when calling
-  |PaqUpdate|.
+`pin` : boolean
+  Indicates whether the package is pinned or not. If a package is pinned then
+  it will be installed, but it will not be updated when calling |PaqUpdate|.
 
   Default value: `false`
 
 
-`run`
-  Either a string or a function to be executed after installing or updating
-  a package. Useful for packages that require extra configuration or
-  building binaries.
+`run` : string | function
+  Either a shell command or Lua function to be executed after installing or
+  updating a package. Useful for packages that require extra build steps.
 
   If a string, Paq will execute the string as a shell command in the
-  directory of the package (not the current working directory).
+  directory of the package (not in the current directory).
 
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
 
   Note that in Lua, you can wrap a VimL function like so:
 >lua
-    { "<name-of-package>", run=vim.fn["<name-of-viml-function>"] };
+  { "<name-of-package>", run = vim.fn["<name-of-viml-function>"] }
 <
   Default value: `nil`
 
 
-`url`
-  String indicating the URL of the git repository.
-
-  If the `url` is set, Paq will try to infer the name of the repository from
-  it. For example, for `url="https://domain.com/some/path/repo-vim.git"` it
-  would be `repo-vim`.
-
-  For convenience, if `url` is unset, Paq will try to find the repository on
-  GitHub.com, based on the package string.
+`url` : string
+  Indicates the URL of the git repository. If `url` is set, it'll take
+  precedence over `[1]`, and Paq will try to infer the name of the repository
+  from it. For example, for `url = "https://example.com/path/to/repo-vim.git"`
+  it would be `repo-vim`. Otherwise, Paq will try to find the remote
+  repository based on `[1]`.
 
   Default value: `"https://github.com/" .. "<GitHub-username>/<repo-name>"`
 
@@ -281,16 +284,16 @@ Package Name Inference~
 You might have noticed the local name of the package may depend on three of
 the options given above. To reiterate, the precedence order of these options is:
 
-  1. `as` option
-  2. `url` option
-  3. Package string (`1`)
+  1. `as`
+  2. `url`
+  3. `[1]`
 
 `as` has the highest precedence, but it doesn't inform Paq about the origin of
-the package, so you always have to use it along side the package string or
-`url`. The package string and `url` may be used on their own, but will set the
-local name of the package to that of the remote repository. In practice, this
-means you never have to use all three together, and most of the time the
-package string alone will be enough.
+the package, so you always have to use it alongside `[1]` or `url`.
+Either `[1]` or `url` may be used on their own; both will set the local name
+of the package to the last component in the path of the URL. In practice, this
+means you never have to use all three together, and most of the time `[1]`
+will be enough.
 
 
 ------------------------------------------------------------------------------
@@ -300,10 +303,10 @@ The language client `coc.nvim` recommends installing the release branch of
 their repository. If we also wanted to install it as an optional package,
 we could call `paq` like:
 >lua
-    local paq = require("paq")
-    paq {
-        {"neoclide/coc.nvim", opt=true, branch="release"};
-    }
+  require("paq") {
+    "savq/paq-nvim",
+    { "neoclide/coc.nvim", branch = "release", opt = true },
+  }
 <
 
 ==============================================================================
@@ -382,59 +385,71 @@ documentation.
 ==============================================================================
 BOOTSTRAPPING                                              *paq-bootstrapping*
 
-You can use Paq programmatically to install your packages in |--headless|
-mode. This can make it easier to set-up your development environment
-automatically.
+You can use Paq programmatically to install your packages. This is useful if
+you want to install packages automatically at startup or in |--headless| mode.
 
-An example of how to "bootstrap" Paq is presented below:
+If you want to ensure Paq and your packages are always installed, you can
+write a helper function that clones Paq if it's not in your system, and then
+installs all your packages. This doesn't require restarting your Neovim
+session. For example:
 >lua
-  -- In ~/.config/nvim/lua/bootstrap.lua
-
-  local PKGS = {
-    "savq/paq-nvim";
-    -- List your packages here!
-  }
-
+  -- In ~/.config/nvim/init.lua
   local function clone_paq()
-    local path = vim.fn.stdpath('data') .. '/site/pack/paqs/start/paq-nvim'
-    if vim.fn.empty(vim.fn.glob(path)) > 0 then
-      vim.fn.system {
-        'git',
-        'clone',
-        '--depth=1',
-        'https://github.com/savq/paq-nvim.git',
-        path
-      }
+    local path = vim.fn.stdpath("data") .. "/site/pack/paqs/start/paq-nvim"
+    local is_installed = vim.fn.empty(vim.fn.glob(path)) > 0
+    if not is_installed then
+      vim.fn.system { "git", "clone", "--depth=1", "https://github.com/savq/paq-nvim.git", path }
     end
   end
 
-  local function bootstrap_paq()
+  local function bootstrap_paq(packages)
     clone_paq()
-
-    -- Load Paq
-    vim.cmd('packadd paq-nvim')
-    local paq = require('paq')
-
-    -- Exit nvim after installing plugins
-    vim.cmd('autocmd User PaqDoneInstall quit')
+    vim.cmd.packadd("paq-nvim")
+    local paq = require("paq")
+    if first_install then
+      vim.notify("Installing plugins... If prompted, hit Enter to continue.")
+    end
 
     -- Read and install packages
-    paq(PKGS)
+    paq(packages)
     paq.install()
   end
 
-  return { bootstrap_paq = bootstrap_paq }
+  -- Call helper function
+  bootstrap_paq {
+    "savq/paq-nvim",
+    -- List your packages
+  }
+<
+Alternatively, you could write the same functions in a separate module to run
+in headless mode, adding an autocommand that closes `Neovim` when done.
+>lua
+  -- In ~/.config/nvim/lua/bootstrap.lua
+
+  -- ... write the same function definitions as above ...
+
+  local function headless_paq()
+    bootstrap_paq {
+      "savq/paq-nvim",
+      -- List your packages
+    }
+    -- Exit nvim after installing plugins
+    vim.cmd("autocmd User PaqDoneInstall quit")
+  end
+
+  return {
+    headless_paq = headless_paq,
+  }
 <
 
-Now, installing your packages should only require calling the `bootstrap`
-function from your shell:
+In this case, installing your packages should only require calling the
+`headless_paq` function from your shell:
 >
-    nvim --headless -u NONE -c 'lua require("bootstrap").bootstrap_paq()'
+  nvim --headless -u NONE -c 'lua require("bootstrap").headless_paq()'
 <
-
-You can adjust the script above to suit your needs. You might only want to
-clone Paq automatically without installing packages, or clone packages only if
-Paq is already installed.
+You can adjust either script to suit your needs. You might only want to clone
+Paq automatically without installing packages, or clone packages only if Paq
+is already installed.
 
 
 ==============================================================================
@@ -460,7 +475,7 @@ in a directory hierarchy.
 The second option just requires you to concatenate the path to the plugin to
 your `runtimepath`. In Lua, this looks like:
 >lua
-    vim.opt.runtimepath:append("~/path/to/your/plugin")
+  vim.opt.runtimepath:append("~/path/to/your/plugin")
 <
 Remember to use an absolute path.
 
@@ -484,19 +499,20 @@ If you've checked all that and still think that the package _has_ to be lazy
 loaded, you can declare the package as optional, and call |packadd| when
 needed.
 
-Since Neovim version 0.7, you can use an |autocommand| to do the lazy loading:
-
-Example:
+Since Neovim version 0.7, you can use an |autocommand| to do the lazy loading.
+For example:
 >lua
-    require("paq") {
-      {"author/heavy-plugin", opt=true};
-    }
-    vim.api.nvim_create_autocmd("FileType",  {
-      group = vim.api.nvim_create_augroup("paq-ft-augroup")
-      pattern = "ruby",
-      desc = "Loads heavy-plugin when filetype is ruby",
-      command = "packadd! heavy-plugin",
-    })
+  require("paq") {
+    "savq/paq-nvim",
+    { "author/heavy-plugin", opt = true },
+  }
+
+  vim.api.nvim_create_autocmd("FileType", {
+    group = vim.api.nvim_create_augroup("paq-ft-augroup"),
+    pattern = "ruby",
+    command = "packadd! heavy-plugin",
+    desc = "Loads heavy-plugin when filetype is ruby",
+  })
 <
 
 ==============================================================================

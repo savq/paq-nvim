@@ -42,15 +42,13 @@ In your init.lua, `require` the `"paq"` module with a list of packages, like:
 
 ```lua
 require "paq" {
-    "savq/paq-nvim";                  -- Let Paq manage itself
+    "savq/paq-nvim", -- Let Paq manage itself
 
-    "neovim/nvim-lspconfig";          -- Mind the semi-colons
+    "neovim/nvim-lspconfig",
 
-    "hrsh7th/nvim-cmp";
+    { "lervag/vimtex", opt = true }, -- Use braces when passing options
 
-    {"lervag/vimtex", opt=true};      -- Use braces when passing options
-
-    {"nvim-treesitter/nvim-treesitter", run=function() vim.cmd "TSUpdate" end};
+    { 'nvim-treesitter/nvim-treesitter', run = function() vim.cmd 'TSUpdate' end },
 }
 ```
 
@@ -58,7 +56,7 @@ Then, source your configuration (using `:source %` or `:luafile %`) and run `:Pa
 
 
 **NOTICE:**
-Calling the `paq` function per package is deprecated. Users should now pass a list to the `'paq'` module instead.
+Calling the `paq` function per package is deprecated. Users should now pass a list to the `"paq"` module instead.
 
 
 ## Commands
