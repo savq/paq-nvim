@@ -265,28 +265,17 @@ local function list()
     end
 end
 
-local function parse_name(args)
-    if args.as then
-        return args.as
-    elseif args.url then
-        return args.url:gsub("%.git$", ""):match("/([%w-_.]+)$"), args.url
-    else
-        return args[1]:match("^[%w-]+/([%w-_.]+)$"), args[1]
-    end
-end
-
 local function register(args)
     if type(args) == "string" then
         args = { args }
     end
-    if not args.url and args[1]:match("^https?://") then
-        args.url = args[1]
-    end
-    local name, src = parse_name(args)
+    local url = args.url
+        or (args[1]:match("^https?://") and args[1]) -- [1] is a URL
+        or string.format(cfg.url_format, args[1]) -- [1] is a repository name
+    local name = args.as
+        or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
     if not name then
-        return vim.notify(" Paq: Failed to parse " .. src, vim.log.levels.ERROR)
-    elseif packages[name] then
-        return
+        return vim.notify(" Paq: Failed to parse " .. vim.inspect(args), vim.log.levels.ERROR)
     end
     local opt = args.opt or cfg.opt and args.opt == nil
     local dir = cfg.path .. (opt and "opt/" or "start/") .. name
@@ -297,8 +286,8 @@ local function register(args)
         exists = vim.fn.isdirectory(dir) ~= 0,
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
         pin = args.pin,
-        run = args.run,
-        url = args.url or string.format(cfg.url_format, args[1]),
+        run = args.run, -- TODO(breaking): Rename
+        url = url,
     }
 end
 
