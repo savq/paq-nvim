@@ -399,11 +399,12 @@ session. For example:
     local is_installed = vim.fn.empty(vim.fn.glob(path)) > 0
     if not is_installed then
       vim.fn.system { "git", "clone", "--depth=1", "https://github.com/savq/paq-nvim.git", path }
+      return true
     end
   end
 
   local function bootstrap_paq(packages)
-    clone_paq()
+    local first_install = clone_paq()
     vim.cmd.packadd("paq-nvim")
     local paq = require("paq")
     if first_install then
