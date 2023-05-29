@@ -89,14 +89,18 @@ local function run_hook(pkg, counter, sync)
         return counter and counter(pkg.name, res, sync)
     elseif t == "string" then
         local args = {}
-        for word in pkg.run:gmatch("%S+") do
-            table.insert(args, word)
+        if pkg.run:sub(1, 1) == ":" then
+            vim.cmd(pkg.run)
+        else
+            for word in pkg.run:gmatch("%S+") do
+                table.insert(args, word)
+            end
+            call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
+                local res = ok and "ok" or "err"
+                report("hook", pkg.name, res)
+                return counter and counter(pkg.name, res, sync)
+            end)
         end
-        call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
-            local res = ok and "ok" or "err"
-            report("hook", pkg.name, res)
-            return counter and counter(pkg.name, res, sync)
-        end)
         return true
     end
 end

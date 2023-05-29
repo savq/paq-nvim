@@ -256,7 +256,8 @@ The options and their types are the following:
   updating a package. Useful for packages that require extra build steps.
 
   If a string, Paq will execute the string as a shell command in the
-  directory of the package (not in the current directory).
+  directory of the package (not in the current directory). If the first
+  character of the string is a `:`, it will be execute as vim `:command`
 
   If a function, Paq will execute the function right after installing
   the package. The function cannot take any arguments.
