@@ -7,7 +7,9 @@ local cfg = {
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
+local lockfile = vim.fn.stdpath("data") .. "/paq-lock.json"
 local packages = {} -- "name" = {options...} pairs
+local lock = {}
 
 -- This is done only once. Doing it for every process seems overkill
 local env = {}
@@ -40,6 +42,68 @@ local function report(op, name, res, n, total)
         string.format(" Paq:%s %s %s", count, messages[op][res], name),
         res == "err" and vim.log.levels.ERROR
     )
+end
+
+local function find_unlisted()
+    local unlisted = {}
+    -- TODO(breaking): Replace with `vim.fs.dir`
+    for _, packdir in pairs { "start", "opt" } do
+        local path = cfg.path .. packdir
+        local handle = uv.fs_scandir(path)
+        while handle do
+            local name, t = uv.fs_scandir_next(handle)
+            if t == "directory" and name ~= "paq-nvim" then
+                local dir = path .. "/" .. name
+                local pkg = packages[name]
+                if not pkg or pkg.dir ~= dir then
+                    table.insert(unlisted, { name = name, dir = dir })
+                end
+            elseif not name then
+                break
+            end
+        end
+    end
+    return unlisted
+end
+
+local function find_uninstalled()
+    local uninstalled = {}
+    for key, pkg in pairs(packages) do
+        if not lock[key] then
+            table.insert(uninstalled, pkg)
+        end
+    end
+    return vim.tbl_filter(function(pkg) return not pkg.exists end, uninstalled)
+end
+
+
+local function lock_load()
+    -- don't really know why 438 see ':h uv_fs_t'
+    local file = uv.fs_open(lockfile, "r", 438)
+    if file then
+        local stat = assert(uv.fs_fstat(file))
+        local data = assert(uv.fs_read(file, stat.size, 0))
+        assert(uv.fs_close(file))
+        local ok, result = pcall(vim.json.decode, data)
+        return ok and result or {}
+    end
+    return {}
+end
+
+local function state_write()
+    local file = uv.fs_open(lockfile, "w", 438)
+    if file then
+        local ok, result = pcall(vim.json.encode, packages)
+        if not ok then
+            error(result)
+        end
+        assert(uv.fs_write(file, result))
+        assert(uv.fs_close(file))
+    end
+end
+
+local function state_diff()
+    return { current = find_uninstalled(), lock = find_unlisted(), }
 end
 
 local function new_counter()
@@ -157,12 +221,12 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
 end
 
 local function pull(pkg, counter, sync)
-    local prev_hash = get_git_hash(pkg.dir)
+    local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
             counter(pkg.name, "err", sync)
         else
-            local cur_hash = get_git_hash(pkg.dir)
+            local cur_hash = pkg.hash
             if cur_hash ~= prev_hash then
                 log_update_changes(pkg, prev_hash, cur_hash)
                 pkg.status = "updated"
@@ -210,27 +274,6 @@ local function rmdir(dir)
     return uv.fs_rmdir(dir)
 end
 
-local function find_unlisted()
-    local unlisted = {}
-    -- TODO(breaking): Replace with `vim.fs.dir`
-    for _, packdir in pairs { "start", "opt" } do
-        local path = cfg.path .. packdir
-        local handle = uv.fs_scandir(path)
-        while handle do
-            local name, t = uv.fs_scandir_next(handle)
-            if t == "directory" and name ~= "paq-nvim" then
-                local dir = path .. "/" .. name
-                local pkg = packages[name]
-                if not pkg or pkg.dir ~= dir then
-                    table.insert(unlisted, { name = name, dir = dir })
-                end
-            elseif not name then
-                break
-            end
-        end
-    end
-    return unlisted
-end
 
 local function remove(p, counter)
     local ok = rmdir(p.dir)
@@ -251,15 +294,20 @@ local function exe_op(op, fn, pkgs)
     for _, pkg in pairs(pkgs) do
         fn(pkg, counter)
     end
+    state_write()
+    lock = packages
+end
+
+local function sort_by_name(t)
+    table.sort(t, function(a, b) return a.name < b.name end)
 end
 
 -- stylua: ignore
 local function list()
     local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
-    local removed = vim.tbl_filter(function(pkg) return pkg.status == "removed" end, packages)
-    local sort_by_name = function(a, b) return a.name < b.name end
-    table.sort(installed, sort_by_name)
-    table.sort(removed, sort_by_name)
+    local removed = vim.tbl_filter(function(pkg) return pkg.status == "removed" end, lock)
+    sort_by_name(installed)
+    sort_by_name(removed)
     local markers = { installed = "+", updated = "*" }
     for header, pkgs in pairs { ["Installed packages:"] = installed, ["Recently removed:"] = removed } do
         if #pkgs ~= 0 then
@@ -291,6 +339,7 @@ local function register(args)
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
+        hash = get_git_hash(dir),
         pin = args.pin,
         run = args.run, -- TODO(breaking): Rename
         url = url,
@@ -301,7 +350,7 @@ end
 return setmetatable({
     install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
     update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
-    clean = function() exe_op("remove", remove, find_unlisted()) end,
+    clean = function() exe_op("remove", remove, state_diff().lock) end,
     sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
@@ -311,5 +360,5 @@ return setmetatable({
     log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
     register = register,
     paq = register, -- TODO: deprecate. not urgent
-}, {__call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) return self end,
+}, {__call = function(self, tbl) packages = {} lock = lock_load() or packages vim.tbl_map(register, tbl) return self end,
 })
