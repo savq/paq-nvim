@@ -13,8 +13,7 @@ local lock = {}
 
 -- This is done only once. Doing it for every process seems overkill
 local env = {}
-local envfn = vim.fn.has("nvim-0.6") == 1 and uv.os_environ or vim.fn.environ
-for var, val in pairs(envfn()) do
+for var, val in pairs(uv.os_environ()) do
     table.insert(env, string.format("%s=%s", var, val))
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
@@ -206,11 +205,12 @@ local function get_git_hash(dir)
 end
 
 local function log_update_changes(pkg, prev_hash, cur_hash)
-    local output = {"\n\n" .. pkg.name .. " updated:\n"}
+    local output = { "\n\n" .. pkg.name .. " updated:\n" }
     local stdout = uv.new_pipe()
     local options = {
-        args = {"log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash},
-        cwd = pkg.dir, stdio = {nil, stdout, nil},
+        args = { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash },
+        cwd = pkg.dir,
+        stdio = { nil, stdout, nil },
     }
     local handle
     handle, _ = uv.spawn('git', options, function(code)
@@ -330,8 +330,8 @@ local function register(args)
         args = { args }
     end
     local url = args.url
-        or (args[1]:match("^https?://") and args[1]) -- [1] is a URL
-        or string.format(cfg.url_format, args[1]) -- [1] is a repository name
+        or (args[1]:match("^https?://") and args[1])    -- [1] is a URL
+        or string.format(cfg.url_format, args[1])       -- [1] is a repository name
     local name = args.as
         or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
     if not name then
@@ -354,16 +354,30 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
-    update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
+    install = function() exe_op("install", clone,
+            vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
+    update = function() exe_op("update", pull,
+            vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
     clean = function() exe_op("remove", remove, state_diff().lock) end,
-    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages)) end,
-    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    sync = function(self)
+        self:clean()
+        exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages))
+    end,
+    setup = function(self, args)
+        for k, v in pairs(args) do cfg[k] = v end
+        return self
+    end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
     list = list,
     log_open = function() vim.cmd("sp " .. logfile) end,
     log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
     register = register,
-}, {__call = function(self, tbl) packages = {} lock = lock_load() or packages vim.tbl_map(register, tbl) return self end,
+}, {
+    __call = function(self, tbl)
+        packages = {}
+        lock = lock_load() or packages
+        vim.tbl_map(register, tbl)
+        return self
+    end,
 })
