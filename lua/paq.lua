@@ -18,16 +18,15 @@ for var, val in pairs(uv.os_environ()) do
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
-vim.cmd([[
-    command! -bar PaqInstall  lua require('paq'):install()
-    command! -bar PaqUpdate   lua require('paq'):update()
-    command! -bar PaqClean    lua require('paq'):clean()
-    command! -bar PaqSync     lua require('paq'):sync()
-    command! -bar PaqList     lua require('paq').list()
-    command! -bar PaqLogOpen  lua require('paq').log_open()
-    command! -bar PaqLogClean lua require('paq').log_clean()
-    command! -bar -nargs=1 -complete=customlist,v:lua.require'paq'._get_hooks PaqRunHook lua require('paq')._run_hook(<f-args>)
-]])
+vim.api.nvim_create_user_command("PaqInstall", "lua require('paq'):install()", { bar = true })
+vim.api.nvim_create_user_command("PaqUpdate", "lua require('paq'):update()", { bar = true })
+vim.api.nvim_create_user_command("PaqClean", "lua require('paq'):clean()", { bar = true })
+vim.api.nvim_create_user_command("PaqSync", "lua require('paq'):sync()", { bar = true })
+vim.api.nvim_create_user_command("PaqList", "lua require('paq').list()", { bar = true })
+vim.api.nvim_create_user_command("PaqLogOpen", "lua require('paq').log_open()", { bar = true })
+vim.api.nvim_create_user_command("PaqLogClean", "lua require('paq').log_clean()", { bar = true })
+vim.api.nvim_create_user_command("PaqRunHook", function(a) require'paq'.run_hook(a.args) end,
+    { bar = true, nargs = 1, complete = function() return require'paq'._get_hooks() end })
 
 local function report(op, name, res, n, total)
     local messages = {
@@ -348,30 +347,16 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function() exe_op("install", clone,
-            vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= "removed" end, packages)) end,
-    update = function() exe_op("update", pull,
-            vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
+    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= status.REMOVED end, packages)) end,
+    update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
     clean = function() exe_op("remove", remove, state_diff().lock) end,
-    sync = function(self)
-        self:clean()
-        exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= "removed" end, packages))
-    end,
-    setup = function(self, args)
-        for k, v in pairs(args) do cfg[k] = v end
-        return self
-    end,
+    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= status.REMOVED end, packages)) end,
+    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
     list = list,
     log_open = function() vim.cmd("sp " .. logfile) end,
     log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
     register = register,
-}, {
-    __call = function(self, tbl)
-        packages = {}
-        lock = lock_load() or packages
-        vim.tbl_map(register, tbl)
-        return self
-    end,
+}, { __call = function(self, tbl) packages = {} lock = lock_load() or packages vim.tbl_map(register, tbl) return self end,
 })
