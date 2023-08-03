@@ -195,12 +195,6 @@ imported as `paq`, the functions are:
     "neovim/nvim-lspconfig",
     "nvim-treesitter/nvim-treesitter",
   }
-<
-
-|paq.paq|
-
-  The paq function is deprecated. The `paq` module is now a callable that
-  takes a list of packages.
 
 
 ==============================================================================
