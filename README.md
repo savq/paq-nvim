@@ -54,11 +54,6 @@ require "paq" {
 
 Then, source your configuration (using `:source %` or `:luafile %`) and run `:PaqInstall`.
 
-
-**NOTICE:**
-Calling the `paq` function per package is deprecated. Users should now pass a list to the `"paq"` module instead.
-
-
 ## Commands
 
 - `PaqInstall`: Install all packages listed in your configuration.
