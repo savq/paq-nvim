@@ -5,6 +5,12 @@ local cfg = {
     verbose = false,
     url_format = "https://github.com/%s.git",
 }
+local status = {
+    LISTED = 0,
+    INSTALLED = 1,
+    UPDATED = 2,
+    REMOVED = 3,
+}
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
 local lockfile = vim.fn.stdpath("data") .. "/paq-lock.json"
@@ -176,7 +182,7 @@ local function clone(pkg, counter, sync)
     call_proc("git", args, nil, function(ok)
         if ok then
             pkg.exists = true
-            pkg.status = "installed"
+            pkg.status = status.INSTALLED
             return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
             counter(pkg.name, "err", sync)
@@ -228,7 +234,7 @@ local function pull(pkg, counter, sync)
             local cur_hash = pkg.hash
             if cur_hash ~= prev_hash then
                 log_update_changes(pkg, prev_hash, cur_hash)
-                pkg.status = "updated"
+                pkg.status = status.UPDATED
                 return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
             else
                 counter(pkg.name, "nop", sync)
@@ -278,7 +284,7 @@ local function remove(p, counter)
     local ok = rmdir(p.dir)
     counter(p.name, ok and "ok" or "err")
     if ok then
-        packages[p.name] = { name = p.name, status = "removed" }
+        packages[p.name] = { name = p.name, status = status.REMOVED }
     end
 end
 
@@ -304,10 +310,10 @@ end
 -- stylua: ignore
 local function list()
     local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
-    local removed = vim.tbl_filter(function(pkg) return pkg.status == "removed" end, lock)
+    local removed = vim.tbl_filter(function(pkg) return pkg.status == status.REMOVED end, lock)
     sort_by_name(installed)
     sort_by_name(removed)
-    local markers = { installed = "+", updated = "*" }
+    local markers = { "+", "*" }
     for header, pkgs in pairs { ["Installed packages:"] = installed, ["Recently removed:"] = removed } do
         if #pkgs ~= 0 then
             print(header)
@@ -337,7 +343,7 @@ local function register(args)
         branch = args.branch,
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
-        status = "listed", -- TODO: should probably merge this with `exists` in the future...
+        status = status.LISTED, -- TODO: should probably merge this with `exists` in the future...
         hash = get_git_hash(dir),
         pin = args.pin,
         run = args.run, -- TODO(breaking): Rename
