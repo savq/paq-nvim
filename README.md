@@ -52,7 +52,7 @@ require "paq" {
 
     { "lervag/vimtex", opt = true }, -- Use braces when passing options
 
-    { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' },
+    { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate' },
 }
 ```
 
@@ -73,10 +73,10 @@ Then, source your configuration (executing `:source $MYVIMRC`) and run `:PaqInst
 |--------|----------|-----------------------------------------------------------|
 | as     | string   | Name to use for the package locally                       |
 | branch | string   | Branch of the repository                                  |
+| build  | function | Lua function to run after install/update                  |
+| build  | string   | Shell command to run after install/update                 |
 | opt    | boolean  | Optional packages are not loaded on startup               |
 | pin    | boolean  | Pinned packages are not updated                           |
-| run    | string   | Shell command to run after install/update                 |
-| run    | function | Lua function to run after install/update                  |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |
 
 For more details on each option, refer to the
