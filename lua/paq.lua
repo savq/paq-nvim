@@ -38,7 +38,7 @@ local function report(op, name, res, n, total)
         install = { ok = "Installed", err = "Failed to install" },
         update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
         remove = { ok = "Removed", err = "Failed to remove" },
-        hook = { ok = "Ran hook for", err = "Failed to run hook for" },
+        build = { ok = "Built", err = "Failed to build" },
     }
     local count = n and string.format(" [%d/%d]", n, total) or ""
     vim.notify(
@@ -74,7 +74,7 @@ local function lock_write()
     -- json.encode doesn't support functions
     local pkgs = vim.deepcopy(packages)
     for p, _ in pairs(pkgs) do
-        pkgs[p].run = nil
+        pkgs[p].build = nil
     end
     local file = uv.fs_open(lockfile, "w", 438)
     if file then
@@ -103,24 +103,6 @@ local function lock_load()
     return vim.deepcopy(packages)
 end
 
-local function new_counter()
-    return coroutine.wrap(function(op, total)
-        local c = { ok = 0, err = 0, nop = 0 }
-        while c.ok + c.err + c.nop < total do
-            local name, res, over_op = coroutine.yield(true)
-            c[res] = c[res] + 1
-            if res ~= "nop" or cfg.verbose then
-                report(over_op or op, name, res, c.ok + c.nop, total)
-            end
-        end
-        local summary = " Paq: %s complete. %d ok; %d errors;" .. (c.nop > 0 and " %d no-ops" or "")
-        vim.notify(string.format(summary, op, c.ok, c.err, c.nop))
-        vim.cmd("packloadall! | silent! helptags ALL")
-        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
-        return true
-    end)
-end
-
 local function call_proc(process, args, cwd, cb, print_stdout)
     local log = uv.fs_open(logfile, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
@@ -141,32 +123,25 @@ local function call_proc(process, args, cwd, cb, print_stdout)
     end
 end
 
-local function run_hook(pkg, counter, sync)
-    local t = type(pkg.run)
+local function run_build(pkg)
+    local t = type(pkg.build)
     if t == "function" then
-        vim.cmd("packadd " .. pkg.name)
-        local res = pcall(pkg.run) and "ok" or "err"
-        report("hook", pkg.name, res)
-        return counter and counter(pkg.name, res, sync)
+        local ok = pcall(pkg.run)
+        report("build", pkg.name, ok and "ok" or "err")
+    elseif t == "string" and pkg.build:sub(1, 1) == ":" then
+        local ok = pcall(vim.cmd, pkg.run)
+        report("build", pkg.name, ok and "ok" or "err")
     elseif t == "string" then
-        local args = {}
-        if pkg.run:sub(1, 1) == ":" then
-            vim.cmd(pkg.run)
-        else
-            for word in pkg.run:gmatch("%S+") do
-                table.insert(args, word)
-            end
-            call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
-                local res = ok and "ok" or "err"
-                report("hook", pkg.name, res)
-                return counter and counter(pkg.name, res, sync)
-            end)
+        for word in pkg.build:gmatch("%S+") do
+            table.insert(args, word)
         end
-        return true
+        call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
+            report("build", pkg.name, ok and "ok" or "err")
+        end)
     end
 end
 
-local function clone(pkg, counter, sync)
+local function clone(pkg, counter, build_queue, sync)
     local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
     if pkg.branch then
         vim.list_extend(args, { "-b", pkg.branch })
@@ -177,7 +152,10 @@ local function clone(pkg, counter, sync)
             pkg.status = status.CLONED
             lock_write()
             lock = vim.deepcopy(packages)
-            return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
+            counter(pkg.name, "ok", sync)
+            if pkg.build then
+                table.insert(build_queue, pkg)
+            end
         else
             counter(pkg.name, "err", sync)
         end
@@ -219,7 +197,7 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
     end)
 end
 
-local function pull(pkg, counter, sync)
+local function pull(pkg, counter, build_queue, sync)
     local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
@@ -231,7 +209,10 @@ local function pull(pkg, counter, sync)
                 pkg.status = status.UPDATED
                 lock_write()
                 lock = vim.deepcopy(packages)
-                return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
+                counter(pkg.name, "ok", sync)
+                if pkg.build then
+                    table.insert(build_queue, pkg)
+                end
             else
                 counter(pkg.name, "nop", sync)
             end
@@ -239,11 +220,11 @@ local function pull(pkg, counter, sync)
     end)
 end
 
-local function clone_or_pull(pkg, counter)
+local function clone_or_pull(pkg, counter, build_queue)
     if filter.to_update(pkg) then
-        pull(pkg, counter, "update")
+        pull(pkg, counter, build_queue, "update")
     elseif filter.to_install(pkg) then
-        clone(pkg, counter, "install")
+        clone(pkg, counter, build_queue, "install")
     end
 end
 
@@ -285,16 +266,46 @@ local function remove(p, counter)
     end
 end
 
+-- Object to track result of operations (installs, updates, etc.)
+local function new_counter(op, total, callback)
+    return coroutine.wrap(function()
+        local c = { ok = 0, err = 0, nop = 0 }
+        while c.ok + c.err + c.nop < total do
+            local name, res, over_op = coroutine.yield(true)
+            c[res] = c[res] + 1
+            if res ~= "nop" or cfg.verbose then
+                report(over_op or op, name, res, c.ok + c.nop, total)
+            end
+        end
+        callback(c.ok, c.err, c.nop)
+        return true
+    end)
+end
+
+-- Boilerplate around operations (autocmds, counter initialization, etc.)
 local function exe_op(op, fn, pkgs)
     if #pkgs == 0 then
         vim.notify(" Paq: Nothing to " .. op)
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
         return
     end
-    local counter = new_counter()
-    counter(op, #pkgs)
+
+    local build_queue = {}
+
+    local function after(ok, err, nop)
+        local summary = " Paq: %s complete. %d ok; %d errors;" .. (nop > 0 and " %d no-ops" or "")
+        vim.notify(string.format(summary, op, ok, err, nop))
+        vim.cmd("packloadall! | silent! helptags ALL")
+        if #build_queue ~= 0 then
+            exe_op("build", run_build, build_queue)
+        end
+        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
+    end
+
+    local counter = new_counter(op, #pkgs, after)
+    counter() -- Initialize counter
     for _, pkg in pairs(pkgs) do
-        fn(pkg, counter)
+        fn(pkg, counter, build_queue)
     end
 end
 
@@ -302,7 +313,6 @@ local function sort_by_name(t)
     table.sort(t, function(a, b) return a.name < b.name end)
 end
 
--- stylua: ignore
 local function list()
     local installed = vim.tbl_filter(filter.installed, lock)
     local removed = vim.tbl_filter(filter.removed, lock)
@@ -339,9 +349,12 @@ local function register(pkg)
         status = uv.fs_stat(dir) and status.INSTALLED or status.LISTED,
         hash = get_git_hash(dir),
         pin = pkg.pin,
-        run = pkg.run, -- TODO(breaking): Rename
+        build = pkg.build or pkg.run,
         url = url,
     }
+    if pkg.run then
+        vim.deprecate("`run` option", "`build`", "3.0", "Paq", false)
+    end
 end
 
 -- PUBLIC API:
@@ -373,12 +386,18 @@ do
     vim.api.nvim_create_user_command(cmd_name, function(_) fn() end, { bar = true })
 end
 
-vim.api.nvim_create_user_command("PaqRunHook", function(a) run_hook(packages[a.args]) end, {
-    bar = true,
-    nargs = 1,
-    complete = function()
-        return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages))
-    end,
-})
+-- stylua: ignore
+do
+    local build_cmd_opts = {
+        bar = true,
+        nargs = 1,
+        complete = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.build end, packages)) end,
+    }
+    vim.api.nvim_create_user_command("PaqBuild", function(a) run_hook(packages[a.args]) end, build_cmd_opts)
+    vim.api.nvim_create_user_command("PaqRunHook", function(a)
+        vim.deprecate("`PaqRunHook` command", "`PaqBuild`", "3.0", "Paq", false)
+        run_hook(packages[a.args])
+    end, build_cmd_opts)
+end
 
 return paq

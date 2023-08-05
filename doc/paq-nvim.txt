@@ -100,16 +100,16 @@ imported as `paq`, the functions are:
 |paq.install|                                                    *paq.install*
                                                                *:PaqInstall*
   Installs all packages listed in your configuration. If a package is already
-  installed, the function ignores it. If a package has a `run` argument, it'll
-  be executed after the package is installed.
+  installed, the function ignores it. If a package has a `build` argument,
+  it'll be executed after the package is installed.
 
 
 |paq.update|                                                      *paq.update*
                                                                 *:PaqUpdate*
   Updates the installed packages listed in your configuration. If a package
-  hasn't been installed with |PaqInstall|, the function ignores it.
-  If a package had changes and it has a `run` argument, then the `run`
-  argument will be executed.
+  hasn't been installed with |PaqInstall|, the function ignores it. If a
+  package had changes and it has a `build` argument, then the `build` argument
+  will be executed.
 
 
 |paq.clean|                                                        *paq.clean*
@@ -125,12 +125,11 @@ imported as `paq`, the functions are:
   out of order.
 
 
-|paq._run_hook|                                                *paq._run_hook*
-                                                               *:PaqRunHook*
-  Takes as single argument a string with the name of a package. If the package
-  has a `run` hook (functions and shell commands), it will execute the hook.
-  This can be used when a hook fails, to run a hook without a package having
-  changed, or for other debugging purposes.
+|PaqBuild|                                                         *:PaqBuild*
+  Takes as single argument with the name of a package. If the package has a
+  `build` option (function or shell command), it will execute it. This can be
+  used when a build fails, to run a build without a package having changed, or
+  for other debugging purposes.
 
 
 |paq.list|                                                          *paq.list*
@@ -231,6 +230,26 @@ The options and their types are the following:
   Default value: `nil`
 
 
+`build` : function | string
+  Either a Lua function, a shell command, or an EX-command to be executed
+  after installing or updating a package. Useful for packages that require
+  a compiling step.
+
+  If a string, Paq will execute the string as a shell command in the
+  directory of the package (not in the current directory). If the first
+  character of the string is a `:`, it will be execute as vim `:command`.
+
+  If a function, Paq will execute the function right after installing
+  the package. The function cannot take any arguments.
+
+  Note that in Lua, you can use index notation to reference a VimL function
+  that contains special characters:
+>lua
+  { "<name-of-package>", build = vim.fn["<name-of-viml-function>"] }
+<
+  Default value: `nil`
+
+
 `opt` : boolean
   Indicates whether the package is optional or not. If set, the package will
   be in the optional packages directory. See |packages| and |packadd|.
@@ -246,21 +265,7 @@ The options and their types are the following:
 
 
 `run` : string | function
-  Either a shell command or Lua function to be executed after installing or
-  updating a package. Useful for packages that require extra build steps.
-
-  If a string, Paq will execute the string as a shell command in the
-  directory of the package (not in the current directory). If the first
-  character of the string is a `:`, it will be execute as vim `:command`
-
-  If a function, Paq will execute the function right after installing
-  the package. The function cannot take any arguments.
-
-  Note that in Lua, you can wrap a VimL function like so:
->lua
-  { "<name-of-package>", run = vim.fn["<name-of-viml-function>"] }
-<
-  Default value: `nil`
+  Deprecated. Use `build` instead.
 
 
 `url` : string
@@ -363,7 +368,7 @@ Here's a list of steps to take when something goes wrong with Paq:
   so you might want to look from the bottom up.
 
 4. If you think the error wasn't caused by git (or another external program
-  called with a hook), consider opening an issue on the paq-nvim GitHub
+  called with `build`), consider opening an issue on the paq-nvim GitHub
   repository.
 
 Some common issues are listed below.
