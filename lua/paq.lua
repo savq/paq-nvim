@@ -26,6 +26,13 @@ local lockfile = vim.fn.stdpath("data") .. "/paq-lock.json"
 local packages = {} -- "name" = {options...} pairs
 local lock = {}
 
+local messages = {
+    install = { ok = "Installed", err = "Failed to install" },
+    update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
+    remove = { ok = "Removed", err = "Failed to remove" },
+    build = { ok = "Built", err = "Failed to build" },
+}
+
 -- This is done only once. Doing it for every process seems overkill
 local env = {}
 for var, val in pairs(uv.os_environ()) do
@@ -33,17 +40,11 @@ for var, val in pairs(uv.os_environ()) do
 end
 table.insert(env, "GIT_TERMINAL_PROMPT=0")
 
-local function report(op, name, res, n, total)
-    local messages = {
-        install = { ok = "Installed", err = "Failed to install" },
-        update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
-        remove = { ok = "Removed", err = "Failed to remove" },
-        build = { ok = "Built", err = "Failed to build" },
-    }
+local function report(name, msg_op, result, n, total)
     local count = n and string.format(" [%d/%d]", n, total) or ""
     vim.notify(
-        string.format(" Paq:%s %s %s", count, messages[op][res], name),
-        res == "err" and vim.log.levels.ERROR
+        string.format(" Paq:%s %s %s", count, msg_op[result], name),
+        result == "err" and vim.log.levels.ERROR
     )
 end
 
@@ -126,22 +127,22 @@ end
 local function run_build(pkg)
     local t = type(pkg.build)
     if t == "function" then
-        local ok = pcall(pkg.run)
-        report("build", pkg.name, ok and "ok" or "err")
+        local ok = pcall(pkg.build)
+        report(pkg.name, messages.build, ok and "ok" or "err")
     elseif t == "string" and pkg.build:sub(1, 1) == ":" then
-        local ok = pcall(vim.cmd, pkg.run)
-        report("build", pkg.name, ok and "ok" or "err")
+        local ok = pcall(vim.cmd, pkg.build)
+        report(pkg.name, messages.build, ok and "ok" or "err")
     elseif t == "string" then
         for word in pkg.build:gmatch("%S+") do
             table.insert(args, word)
         end
         call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
-            report("build", pkg.name, ok and "ok" or "err")
+            report(pkg.name, messages.build, ok and "ok" or "err")
         end)
     end
 end
 
-local function clone(pkg, counter, build_queue, sync)
+local function clone(pkg, counter, build_queue)
     local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
     if pkg.branch then
         vim.list_extend(args, { "-b", pkg.branch })
@@ -152,13 +153,11 @@ local function clone(pkg, counter, build_queue, sync)
             pkg.status = status.CLONED
             lock_write()
             lock = vim.deepcopy(packages)
-            counter(pkg.name, "ok", sync)
             if pkg.build then
                 table.insert(build_queue, pkg)
             end
-        else
-            counter(pkg.name, "err", sync)
         end
+        counter(pkg.name, messages.install, ok and "ok" or "err")
     end)
 end
 
@@ -197,11 +196,11 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
     end)
 end
 
-local function pull(pkg, counter, build_queue, sync)
+local function pull(pkg, counter, build_queue)
     local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
-            counter(pkg.name, "err", sync)
+            counter(pkg.name, messages.update, "err")
         else
             local cur_hash = pkg.hash
             if cur_hash ~= prev_hash then
@@ -209,12 +208,12 @@ local function pull(pkg, counter, build_queue, sync)
                 pkg.status = status.UPDATED
                 lock_write()
                 lock = vim.deepcopy(packages)
-                counter(pkg.name, "ok", sync)
+                counter(pkg.name, messages.update, "ok")
                 if pkg.build then
                     table.insert(build_queue, pkg)
                 end
             else
-                counter(pkg.name, "nop", sync)
+                counter(pkg.name, messages.update, "nop")
             end
         end
     end)
@@ -222,9 +221,9 @@ end
 
 local function clone_or_pull(pkg, counter, build_queue)
     if filter.to_update(pkg) then
-        pull(pkg, counter, build_queue, "update")
+        pull(pkg, counter, build_queue)
     elseif filter.to_install(pkg) then
-        clone(pkg, counter, build_queue, "install")
+        clone(pkg, counter, build_queue)
     end
 end
 
@@ -258,7 +257,7 @@ end
 
 local function remove(p, counter)
     local ok = rmdir(p.dir)
-    counter(p.name, ok and "ok" or "err")
+    counter(p.name, messages.remove, ok and "ok" or "err")
     if ok then
         packages[p.name] = { name = p.name, status = status.REMOVED }
         lock_write()
@@ -267,14 +266,14 @@ local function remove(p, counter)
 end
 
 -- Object to track result of operations (installs, updates, etc.)
-local function new_counter(op, total, callback)
+local function new_counter(total, callback)
     return coroutine.wrap(function()
         local c = { ok = 0, err = 0, nop = 0 }
         while c.ok + c.err + c.nop < total do
-            local name, res, over_op = coroutine.yield(true)
-            c[res] = c[res] + 1
-            if res ~= "nop" or cfg.verbose then
-                report(over_op or op, name, res, c.ok + c.nop, total)
+            local name, msg_op, result = coroutine.yield(true)
+            c[result] = c[result] + 1
+            if result ~= "nop" or cfg.verbose then
+                report(name, msg_op, result, c.ok + c.nop, total)
             end
         end
         callback(c.ok, c.err, c.nop)
@@ -302,8 +301,9 @@ local function exe_op(op, fn, pkgs)
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
     end
 
-    local counter = new_counter(op, #pkgs, after)
+    local counter = new_counter(#pkgs, after)
     counter() -- Initialize counter
+
     for _, pkg in pairs(pkgs) do
         fn(pkg, counter, build_queue)
     end
