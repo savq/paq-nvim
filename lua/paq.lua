@@ -91,9 +91,15 @@ local function lock_load()
 end
 
 local function state_write()
+   -- remove run key since can have a function in it, and
+    -- json.encode doesn't support functions
+    local pkgs = vim.deepcopy(packages)
+    for p, _ in pairs(pkgs) do
+        pkgs[p].run = nil
+    end
     local file = uv.fs_open(lockfile, "w", 438)
     if file then
-        local ok, result = pcall(vim.json.encode, packages)
+        local ok, result = pcall(vim.json.encode, pkgs)
         if not ok then
             error(result)
         end
