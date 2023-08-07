@@ -175,6 +175,11 @@ local function run_hook(pkg, counter, sync)
     end
 end
 
+local function cloning_with_hash(pkg)
+    os.execute("git", "-C", pkg.dir, "pull", "--unshallow")
+    os.execute("git", "-C", pkg.dir, "checkout", pkg.commit)
+end
+
 local function clone(pkg, counter, sync)
     local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
     if pkg.branch then
@@ -190,6 +195,9 @@ local function clone(pkg, counter, sync)
             counter(pkg.name, "err", sync)
         end
     end)
+    if pkg.commit then
+        cloning_with_hash(pkg)
+    end
 end
 
 local function get_git_hash(dir)
@@ -342,6 +350,7 @@ local function register(args)
     packages[name] = {
         name = name,
         branch = args.branch,
+        commit = args.commit,
         dir = dir,
         exists = vim.fn.isdirectory(dir) ~= 0,
         status = "listed", -- TODO: should probably merge this with `exists` in the future...
