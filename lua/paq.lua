@@ -79,32 +79,8 @@ local function find_unlisted()
     return unlisted
 end
 
-local function find_uninstalled()
-    local uninstalled = {}
-    for key, pkg in pairs(packages) do
-        if not lock[key] then
-            table.insert(uninstalled, pkg)
-        end
-    end
-    return vim.tbl_filter(function(pkg) return not pkg.exists end, uninstalled)
-end
-
-
-local function lock_load()
-    -- don't really know why 438 see ':h uv_fs_t'
-    local file = uv.fs_open(lockfile, "r", 438)
-    if file then
-        local stat = assert(uv.fs_fstat(file))
-        local data = assert(uv.fs_read(file, stat.size, 0))
-        assert(uv.fs_close(file))
-        local ok, result = pcall(vim.json.decode, data)
-        return ok and result or {}
-    end
-    return {}
-end
-
-local function state_write()
-   -- remove run key since can have a function in it, and
+local function lock_write()
+    -- remove run key since can have a function in it, and
     -- json.encode doesn't support functions
     local pkgs = vim.deepcopy(packages)
     for p, _ in pairs(pkgs) do
@@ -121,8 +97,20 @@ local function state_write()
     end
 end
 
-local function state_diff()
-    return { current = find_uninstalled(), lock = find_unlisted(), }
+local function lock_load()
+    -- don't really know why 438 see ':h uv_fs_t'
+    local file = uv.fs_open(lockfile, "r", 438)
+    if file then
+        local stat = assert(uv.fs_fstat(file))
+        local data = assert(uv.fs_read(file, stat.size, 0))
+        assert(uv.fs_close(file))
+        local ok, result = pcall(vim.json.decode, data)
+        if ok and not vim.tbl_isempty(result) then
+            return result
+        end
+    end
+    lock_write()
+    return vim.deepcopy(packages)
 end
 
 local function new_counter()
@@ -240,7 +228,7 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
 end
 
 local function pull(pkg, counter, sync)
-    local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
+    local prev_hash = lock[pkg.name] and lock[pkg.name].hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
             counter(pkg.name, "err", sync)
@@ -312,8 +300,10 @@ local function exe_op(op, fn, pkgs)
     for _, pkg in pairs(pkgs) do
         fn(pkg, counter)
     end
-    state_write()
-    lock = packages
+    if not vim.deep_equal(packages, lock) then
+        lock_write()
+        lock = vim.deepcopy(packages)
+    end
 end
 
 local function sort_by_name(t)
@@ -376,5 +366,5 @@ return setmetatable({
     log_open = function() vim.cmd("sp " .. logfile) end,
     log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
     register = register,
-}, { __call = function(self, tbl) packages = {} lock = lock_load() or packages vim.tbl_map(register, tbl) return self end,
+}, { __call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) lock = lock_load() return self end,
 })
