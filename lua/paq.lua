@@ -327,28 +327,27 @@ local function list()
     end
 end
 
-local function register(args)
-    if type(args) == "string" then
-        args = { args }
+local function register(pkg)
+    if type(pkg) == "string" then
+        pkg = { pkg }
     end
-    local url = args.url
-        or (args[1]:match("^https?://") and args[1])    -- [1] is a URL
-        or string.format(cfg.url_format, args[1])       -- [1] is a repository name
-    local name = args.as
-        or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
+    local url = pkg.url
+        or (pkg[1]:match("^https?://") and pkg[1]) -- [1] is a URL
+        or string.format(cfg.url_format, pkg[1]) -- [1] is a repository name
+    local name = pkg.as or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
     if not name then
-        return vim.notify(" Paq: Failed to parse " .. vim.inspect(args), vim.log.levels.ERROR)
+        return vim.notify(" Paq: Failed to parse " .. vim.inspect(pkg), vim.log.levels.ERROR)
     end
-    local opt = args.opt or cfg.opt and args.opt == nil
+    local opt = pkg.opt or cfg.opt and pkg.opt == nil
     local dir = cfg.path .. (opt and "opt/" or "start/") .. name
     packages[name] = {
         name = name,
-        branch = args.branch,
+        branch = pkg.branch,
         dir = dir,
         status = uv.fs_stat(dir) and status.INSTALLED or status.LISTED,
         hash = get_git_hash(dir),
-        pin = args.pin,
-        run = args.run, -- TODO(breaking): Rename
+        pin = pkg.pin,
+        run = pkg.run, -- TODO(breaking): Rename
         url = url,
     }
 end
