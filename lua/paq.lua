@@ -6,10 +6,19 @@ local cfg = {
     url_format = "https://github.com/%s.git",
 }
 local status = {
-    LISTED = 0,
-    INSTALLED = 1,
+    INSTALLED = 0,
+    CLONED = 1,
     UPDATED = 2,
     REMOVED = 3,
+    LISTED = 4,
+}
+-- stylua: ignore
+local filter = {
+    removed     = function(p) return p.status == status.REMOVED end,
+    not_removed = function(p) return p.status ~= status.REMOVED end,
+    to_install  = function(p) return p.status == status.LISTED end,
+    installed   = function(p) return p.status ~= status.REMOVED and p.status ~= status.LISTED end,
+    to_update   = function(p) return p.status ~= status.REMOVED and p.status ~= status.LISTED and not p.pin end,
 }
 local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
 local logfile = logpath .. "/paq.log"
@@ -187,8 +196,7 @@ local function clone(pkg, counter, sync)
     vim.list_extend(args, { pkg.dir })
     call_proc("git", args, nil, function(ok)
         if ok then
-            pkg.exists = true
-            pkg.status = status.INSTALLED
+            pkg.status = status.CLONED
             return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
             counter(pkg.name, "err", sync)
@@ -250,9 +258,9 @@ local function pull(pkg, counter, sync)
 end
 
 local function clone_or_pull(pkg, counter)
-    if pkg.exists and not pkg.pin then
+    if filter.to_update(pkg) then
         pull(pkg, counter, "update")
-    elseif not pkg.exists then
+    elseif filter.to_install(pkg) then
         clone(pkg, counter, "install")
     end
 end
@@ -285,7 +293,6 @@ local function rmdir(dir)
     return uv.fs_rmdir(dir)
 end
 
-
 local function remove(p, counter)
     local ok = rmdir(p.dir)
     counter(p.name, ok and "ok" or "err")
@@ -315,8 +322,8 @@ end
 
 -- stylua: ignore
 local function list()
-    local installed = vim.tbl_filter(function(pkg) return pkg.exists end, packages)
-    local removed = vim.tbl_filter(function(pkg) return pkg.status == status.REMOVED end, lock)
+    local installed = vim.tbl_filter(filter.installed, lock)
+    local removed = vim.tbl_filter(filter.removed, lock)
     sort_by_name(installed)
     sort_by_name(removed)
     local markers = { "+", "*" }
@@ -348,8 +355,7 @@ local function register(args)
         name = name,
         branch = args.branch,
         dir = dir,
-        exists = vim.fn.isdirectory(dir) ~= 0,
-        status = status.LISTED, -- TODO: should probably merge this with `exists` in the future...
+        status = uv.fs_stat(dir) and status.INSTALLED or status.LISTED,
         hash = get_git_hash(dir),
         pin = args.pin,
         run = args.run, -- TODO(breaking): Rename
@@ -359,10 +365,10 @@ end
 
 -- stylua: ignore
 return setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(function(pkg) return not pkg.exists and pkg.status ~= status.REMOVED end, packages)) end,
-    update = function() exe_op("update", pull, vim.tbl_filter(function(pkg) return pkg.exists and not pkg.pin end, packages)) end,
-    clean = function() exe_op("remove", remove, state_diff().lock) end,
-    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(function(pkg) return pkg.status ~= status.REMOVED end, packages)) end,
+    install = function() exe_op("install", clone, vim.tbl_filter(filter.to_install, packages)) end,
+    update = function() exe_op("update", pull, vim.tbl_filter(filter.to_update, packages)) end,
+    clean = function() exe_op("remove", remove, find_unlisted()) end,
+    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(filter.not_removed, packages)) end,
     setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
     _run_hook = function(name) return run_hook(packages[name]) end,
     _get_hooks = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.run end, packages)) end,
