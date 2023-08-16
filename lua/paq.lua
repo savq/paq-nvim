@@ -185,6 +185,8 @@ local function clone(pkg, counter, sync)
     call_proc("git", args, nil, function(ok)
         if ok then
             pkg.status = status.CLONED
+            lock_write()
+            lock = vim.deepcopy(packages)
             return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
         else
             counter(pkg.name, "err", sync)
@@ -228,7 +230,7 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
 end
 
 local function pull(pkg, counter, sync)
-    local prev_hash = lock[pkg.name] and lock[pkg.name].hash
+    local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
             counter(pkg.name, "err", sync)
@@ -237,6 +239,8 @@ local function pull(pkg, counter, sync)
             if cur_hash ~= prev_hash then
                 log_update_changes(pkg, prev_hash, cur_hash)
                 pkg.status = status.UPDATED
+                lock_write()
+                lock = vim.deepcopy(packages)
                 return pkg.run and run_hook(pkg, counter, sync) or counter(pkg.name, "ok", sync)
             else
                 counter(pkg.name, "nop", sync)
@@ -286,6 +290,8 @@ local function remove(p, counter)
     counter(p.name, ok and "ok" or "err")
     if ok then
         packages[p.name] = { name = p.name, status = status.REMOVED }
+        lock_write()
+        lock = vim.deepcopy(packages)
     end
 end
 
@@ -299,10 +305,6 @@ local function exe_op(op, fn, pkgs)
     counter(op, #pkgs)
     for _, pkg in pairs(pkgs) do
         fn(pkg, counter)
-    end
-    if not vim.deep_equal(packages, lock) then
-        lock_write()
-        lock = vim.deepcopy(packages)
     end
 end
 
