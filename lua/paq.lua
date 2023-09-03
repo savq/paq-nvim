@@ -1,44 +1,52 @@
 local uv = vim.loop
-local cfg = {
+
+local Config = {
     path = vim.fn.stdpath("data") .. "/site/pack/paqs/",
     opt = false,
     verbose = false,
     url_format = "https://github.com/%s.git",
 }
-local status = {
-    INSTALLED = 0,
-    CLONED = 1,
-    UPDATED = 2,
-    REMOVED = 3,
-    LISTED = 4,
-}
--- stylua: ignore
-local filter = {
-    removed     = function(p) return p.status == status.REMOVED end,
-    not_removed = function(p) return p.status ~= status.REMOVED end,
-    to_install  = function(p) return p.status == status.LISTED end,
-    installed   = function(p) return p.status ~= status.REMOVED and p.status ~= status.LISTED end,
-    to_update   = function(p) return p.status ~= status.REMOVED and p.status ~= status.LISTED and not p.pin end,
-}
-local logpath = vim.fn.has("nvim-0.8") == 1 and vim.fn.stdpath("log") or vim.fn.stdpath("cache")
-local logfile = logpath .. "/paq.log"
-local lockfile = vim.fn.stdpath("data") .. "/paq-lock.json"
-local packages = {} -- "name" = {options...} pairs
-local lock = {}
 
-local messages = {
+-- TODO: Merge with Config?
+local Files = {
+    log = vim.fn.stdpath(vim.fn.has("nvim-0.8") == 1 and "log" or "cache") .. "/paq.log",
+    lock = vim.fn.stdpath("data") .. "/paq-lock.json"
+}
+
+local Messages = {
     install = { ok = "Installed", err = "Failed to install" },
     update = { ok = "Updated", err = "Failed to update", nop = "(up-to-date)" },
     remove = { ok = "Removed", err = "Failed to remove" },
     build = { ok = "Built", err = "Failed to build" },
 }
 
--- This is done only once. Doing it for every process seems overkill
-local env = {}
+local Status = {
+    INSTALLED = 0,
+    CLONED = 1,
+    UPDATED = 2,
+    REMOVED = 3,
+    LISTED = 4,
+}
+
+-- Tables with packages' information
+local Lock = {}
+local Packages = {} -- "name" = {options...} pairs
+
+-- stylua: ignore
+local Filter = {
+    installed   = function(p) return p.status ~= Status.REMOVED and p.status ~= Status.LISTED end,
+    not_removed = function(p) return p.status ~= Status.REMOVED end,
+    removed     = function(p) return p.status == Status.REMOVED end,
+    to_install  = function(p) return p.status == Status.LISTED end,
+    to_update   = function(p) return p.status ~= Status.REMOVED and p.status ~= Status.LISTED and not p.pin end,
+}
+
+-- Copy environment variables once. Doing it for every process seems overkill.
+local Env = {}
 for var, val in pairs(uv.os_environ()) do
-    table.insert(env, string.format("%s=%s", var, val))
+    table.insert(Env, string.format("%s=%s", var, val))
 end
-table.insert(env, "GIT_TERMINAL_PROMPT=0")
+table.insert(Env, "GIT_TERMINAL_PROMPT=0")
 
 local function report(name, msg_op, result, n, total)
     local count = n and string.format(" [%d/%d]", n, total) or ""
@@ -52,13 +60,13 @@ local function find_unlisted()
     local unlisted = {}
     -- TODO(breaking): Replace with `vim.fs.dir`
     for _, packdir in pairs { "start", "opt" } do
-        local path = cfg.path .. packdir
+        local path = Config.path .. packdir
         local handle = uv.fs_scandir(path)
         while handle do
             local name, t = uv.fs_scandir_next(handle)
             if t == "directory" and name ~= "paq-nvim" then
                 local dir = path .. "/" .. name
-                local pkg = packages[name]
+                local pkg = Packages[name]
                 if not pkg or pkg.dir ~= dir then
                     table.insert(unlisted, { name = name, dir = dir })
                 end
@@ -73,11 +81,11 @@ end
 local function lock_write()
     -- remove run key since can have a function in it, and
     -- json.encode doesn't support functions
-    local pkgs = vim.deepcopy(packages)
+    local pkgs = vim.deepcopy(Packages)
     for p, _ in pairs(pkgs) do
         pkgs[p].build = nil
     end
-    local file = uv.fs_open(lockfile, "w", 438)
+    local file = uv.fs_open(Files.lock, "w", 438)
     if file then
         local ok, result = pcall(vim.json.encode, pkgs)
         if not ok then
@@ -90,7 +98,7 @@ end
 
 local function lock_load()
     -- don't really know why 438 see ':h uv_fs_t'
-    local file = uv.fs_open(lockfile, "r", 438)
+    local file = uv.fs_open(Files.lock, "r", 438)
     if file then
         local stat = assert(uv.fs_fstat(file))
         local data = assert(uv.fs_read(file, stat.size, 0))
@@ -101,17 +109,17 @@ local function lock_load()
         end
     end
     lock_write()
-    return vim.deepcopy(packages)
+    return vim.deepcopy(Packages)
 end
 
 local function call_proc(process, args, cwd, cb, print_stdout)
-    local log = uv.fs_open(logfile, "a+", 0x1A4)
+    local log = uv.fs_open(Files.log, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
     stderr:open(log)
     local handle, pid
     handle, pid = uv.spawn(
         process,
-        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = env },
+        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = Env },
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
             stderr:close()
@@ -128,16 +136,16 @@ local function run_build(pkg)
     local t = type(pkg.build)
     if t == "function" then
         local ok = pcall(pkg.build)
-        report(pkg.name, messages.build, ok and "ok" or "err")
+        report(pkg.name, Messages.build, ok and "ok" or "err")
     elseif t == "string" and pkg.build:sub(1, 1) == ":" then
         local ok = pcall(vim.cmd, pkg.build)
-        report(pkg.name, messages.build, ok and "ok" or "err")
+        report(pkg.name, Messages.build, ok and "ok" or "err")
     elseif t == "string" then
         for word in pkg.build:gmatch("%S+") do
             table.insert(args, word)
         end
         call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
-            report(pkg.name, messages.build, ok and "ok" or "err")
+            report(pkg.name, Messages.build, ok and "ok" or "err")
         end)
     end
 end
@@ -150,14 +158,14 @@ local function clone(pkg, counter, build_queue)
     vim.list_extend(args, { pkg.dir })
     call_proc("git", args, nil, function(ok)
         if ok then
-            pkg.status = status.CLONED
+            pkg.status = Status.CLONED
             lock_write()
-            lock = vim.deepcopy(packages)
+            Lock = vim.deepcopy(Packages)
             if pkg.build then
                 table.insert(build_queue, pkg)
             end
         end
-        counter(pkg.name, messages.install, ok and "ok" or "err")
+        counter(pkg.name, Messages.install, ok and "ok" or "err")
     end)
 end
 
@@ -186,7 +194,7 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
     handle, _ = uv.spawn("git", options, function(code)
         assert(code == 0, "Exited(" .. code .. ")")
         handle:close()
-        local log = uv.fs_open(logfile, "a+", 0x1A4)
+        local log = uv.fs_open(Files.log, "a+", 0x1A4)
         uv.fs_write(log, output, nil, nil)
         uv.fs_close(log)
     end)
@@ -197,32 +205,32 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
 end
 
 local function pull(pkg, counter, build_queue)
-    local prev_hash = lock[pkg.name] and lock[pkg.name].hash or pkg.hash
+    local prev_hash = Lock[pkg.name] and Lock[pkg.name].hash or pkg.hash
     call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
-            counter(pkg.name, messages.update, "err")
+            counter(pkg.name, Messages.update, "err")
         else
             local cur_hash = pkg.hash
             if cur_hash ~= prev_hash then
                 log_update_changes(pkg, prev_hash, cur_hash)
-                pkg.status = status.UPDATED
+                pkg.status = Status.UPDATED
                 lock_write()
-                lock = vim.deepcopy(packages)
-                counter(pkg.name, messages.update, "ok")
+                Lock = vim.deepcopy(Packages)
+                counter(pkg.name, Messages.update, "ok")
                 if pkg.build then
                     table.insert(build_queue, pkg)
                 end
             else
-                counter(pkg.name, messages.update, "nop")
+                counter(pkg.name, Messages.update, "nop")
             end
         end
     end)
 end
 
 local function clone_or_pull(pkg, counter, build_queue)
-    if filter.to_update(pkg) then
+    if Filter.to_update(pkg) then
         pull(pkg, counter, build_queue)
-    elseif filter.to_install(pkg) then
+    elseif Filter.to_install(pkg) then
         clone(pkg, counter, build_queue)
     end
 end
@@ -257,11 +265,11 @@ end
 
 local function remove(p, counter)
     local ok = rmdir(p.dir)
-    counter(p.name, messages.remove, ok and "ok" or "err")
+    counter(p.name, Messages.remove, ok and "ok" or "err")
     if ok then
-        packages[p.name] = { name = p.name, status = status.REMOVED }
+        Packages[p.name] = { name = p.name, status = Status.REMOVED }
         lock_write()
-        lock = vim.deepcopy(packages)
+        Lock = vim.deepcopy(Packages)
     end
 end
 
@@ -272,7 +280,7 @@ local function new_counter(total, callback)
         while c.ok + c.err + c.nop < total do
             local name, msg_op, result = coroutine.yield(true)
             c[result] = c[result] + 1
-            if result ~= "nop" or cfg.verbose then
+            if result ~= "nop" or Config.verbose then
                 report(name, msg_op, result, c.ok + c.nop, total)
             end
         end
@@ -314,8 +322,8 @@ local function sort_by_name(t)
 end
 
 local function list()
-    local installed = vim.tbl_filter(filter.installed, lock)
-    local removed = vim.tbl_filter(filter.removed, lock)
+    local installed = vim.tbl_filter(Filter.installed, Lock)
+    local removed = vim.tbl_filter(Filter.removed, Lock)
     sort_by_name(installed)
     sort_by_name(removed)
     local markers = { "+", "*" }
@@ -335,18 +343,18 @@ local function register(pkg)
     end
     local url = pkg.url
         or (pkg[1]:match("^https?://") and pkg[1]) -- [1] is a URL
-        or string.format(cfg.url_format, pkg[1]) -- [1] is a repository name
+        or string.format(Config.url_format, pkg[1]) -- [1] is a repository name
     local name = pkg.as or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
     if not name then
         return vim.notify(" Paq: Failed to parse " .. vim.inspect(pkg), vim.log.levels.ERROR)
     end
-    local opt = pkg.opt or cfg.opt and pkg.opt == nil
-    local dir = cfg.path .. (opt and "opt/" or "start/") .. name
-    packages[name] = {
+    local opt = pkg.opt or Config.opt and pkg.opt == nil
+    local dir = Config.path .. (opt and "opt/" or "start/") .. name
+    Packages[name] = {
         name = name,
         branch = pkg.branch,
         dir = dir,
-        status = uv.fs_stat(dir) and status.INSTALLED or status.LISTED,
+        status = uv.fs_stat(dir) and Status.INSTALLED or Status.LISTED,
         hash = get_git_hash(dir),
         pin = pkg.pin,
         build = pkg.build or pkg.run,
@@ -361,16 +369,16 @@ end
 
 -- stylua: ignore
 local paq = setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(filter.to_install, packages)) end,
-    update = function() exe_op("update", pull, vim.tbl_filter(filter.to_update, packages)) end,
+    install = function() exe_op("install", clone, vim.tbl_filter(Filter.to_install, Packages)) end,
+    update = function() exe_op("update", pull, vim.tbl_filter(Filter.to_update, Packages)) end,
     clean = function() exe_op("remove", remove, find_unlisted()) end,
-    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(filter.not_removed, packages)) end,
-    setup = function(self, args) for k, v in pairs(args) do cfg[k] = v end return self end,
+    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(Filter.not_removed, Packages)) end,
+    setup = function(self, args) for k, v in pairs(args) do Config[k] = v end return self end,
     list = list,
-    log_open = function() vim.cmd("sp " .. logfile) end,
-    log_clean = function() return assert(uv.fs_unlink(logfile)) and vim.notify(" Paq: log file deleted") end,
+    log_open = function() vim.cmd("sp " .. Files.log) end,
+    log_clean = function() return assert(uv.fs_unlink(Files.log)) and vim.notify(" Paq: log file deleted") end,
     register = register,
-}, { __call = function(self, tbl) packages = {} vim.tbl_map(register, tbl) lock = lock_load() return self end,
+}, { __call = function(self, tbl) Packages = {} vim.tbl_map(register, tbl) Lock = lock_load() return self end,
 })
 
 for cmd_name, fn in pairs {
@@ -393,10 +401,10 @@ do
         nargs = 1,
         complete = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.build end, packages)) end,
     }
-    vim.api.nvim_create_user_command("PaqBuild", function(a) run_hook(packages[a.args]) end, build_cmd_opts)
+    vim.api.nvim_create_user_command("PaqBuild", function(a) run_hook(Packages[a.args]) end, build_cmd_opts)
     vim.api.nvim_create_user_command("PaqRunHook", function(a)
         vim.deprecate("`PaqRunHook` command", "`PaqBuild`", "3.0", "Paq", false)
-        run_hook(packages[a.args])
+        run_hook(Packages[a.args])
     end, build_cmd_opts)
 end
 
