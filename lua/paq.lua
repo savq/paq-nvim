@@ -398,13 +398,13 @@ do
     local build_cmd_opts = {
         bar = true,
         nargs = 1,
-        complete = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.build end, packages)) end,
+        complete = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.build end, Packages)) end,
     }
-    vim.api.nvim_create_user_command("PaqBuild", function(a) run_hook(Packages[a.args]) end, build_cmd_opts)
     vim.api.nvim_create_user_command("PaqSync", function() paq:sync() end, { bar = true })
+    vim.api.nvim_create_user_command("PaqBuild", function(a) run_build(Packages[a.args]) end, build_cmd_opts)
     vim.api.nvim_create_user_command("PaqRunHook", function(a)
         vim.deprecate("`PaqRunHook` command", "`PaqBuild`", "3.0", "Paq", false)
-        run_hook(Packages[a.args])
+        run_build(Packages[a.args])
     end, build_cmd_opts)
 end
 
