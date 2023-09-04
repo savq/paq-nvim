@@ -382,14 +382,13 @@ local paq = setmetatable({
 })
 
 for cmd_name, fn in pairs {
-        PaqInstall = paq.install,
-        PaqUpdate = paq.update,
-        PaqClean = paq.clean,
-        PaqSync = paq.sync,
-        PaqList = paq.list,
-        PaqLogOpen = paq.log_open,
-        PaqLogClean = paq.log_clean,
-    }
+    PaqInstall = paq.install,
+    PaqUpdate = paq.update,
+    PaqClean = paq.clean,
+    PaqList = paq.list,
+    PaqLogOpen = paq.log_open,
+    PaqLogClean = paq.log_clean,
+}
 do
     vim.api.nvim_create_user_command(cmd_name, function(_) fn() end, { bar = true })
 end
@@ -402,6 +401,7 @@ do
         complete = function() return vim.tbl_keys(vim.tbl_map(function(pkg) return pkg.build end, packages)) end,
     }
     vim.api.nvim_create_user_command("PaqBuild", function(a) run_hook(Packages[a.args]) end, build_cmd_opts)
+    vim.api.nvim_create_user_command("PaqSync", function() paq:sync() end, { bar = true })
     vim.api.nvim_create_user_command("PaqRunHook", function(a)
         vim.deprecate("`PaqRunHook` command", "`PaqBuild`", "3.0", "Paq", false)
         run_hook(Packages[a.args])
