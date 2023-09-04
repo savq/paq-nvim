@@ -94,6 +94,7 @@ local function lock_write()
         assert(uv.fs_write(file, result))
         assert(uv.fs_close(file))
     end
+    Lock = Packages
 end
 
 local function lock_load()
@@ -109,7 +110,8 @@ local function lock_load()
         end
     end
     lock_write()
-    return vim.deepcopy(Packages)
+    return Packages
+end
 end
 
 local function call_proc(process, args, cwd, cb, print_stdout)
@@ -160,7 +162,6 @@ local function clone(pkg, counter, build_queue)
         if ok then
             pkg.status = Status.CLONED
             lock_write()
-            Lock = vim.deepcopy(Packages)
             if pkg.build then
                 table.insert(build_queue, pkg)
             end
@@ -215,7 +216,6 @@ local function pull(pkg, counter, build_queue)
                 log_update_changes(pkg, prev_hash, cur_hash)
                 pkg.status = Status.UPDATED
                 lock_write()
-                Lock = vim.deepcopy(Packages)
                 counter(pkg.name, Messages.update, "ok")
                 if pkg.build then
                     table.insert(build_queue, pkg)
@@ -269,7 +269,6 @@ local function remove(p, counter)
     if ok then
         Packages[p.name] = { name = p.name, status = Status.REMOVED }
         lock_write()
-        Lock = vim.deepcopy(Packages)
     end
 end
 
