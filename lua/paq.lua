@@ -31,6 +31,7 @@ local Status = {
 -- Tables with packages' information
 local Lock = {}
 local Packages = {} -- "name" = {options...} pairs
+local Diff = {}
 
 -- stylua: ignore
 local Filter = {
@@ -112,6 +113,25 @@ local function lock_load()
     lock_write()
     return Packages
 end
+
+local function lock_compare(pkgs)
+    local res = {}
+    for _, x in pairs(pkgs) do
+        local lpkg = Lock[x.name]
+        if lpkg and Filter.not_removed(lpkg) and not vim.deep_equal(lpkg, x) then
+            local p = {}
+            for _, k in pairs({ "dir", "branch" }) do
+                if lpkg[k] ~= x[k] then
+                    p[k] = { lpkg[k], x[k] }
+                end
+            end
+            if not vim.tbl_isempty(p) then
+                p.name = x.name
+                table.insert(res, p)
+            end
+        end
+    end
+    return res
 end
 
 local function call_proc(process, args, cwd, cb, print_stdout)
@@ -153,7 +173,7 @@ local function run_build(pkg)
 end
 
 local function clone(pkg, counter, build_queue)
-    local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules" }
+    local args = { "clone", pkg.url, "--depth=1", "--recurse-submodules", "--shallow-submodules", "--no-single-branch" }
     if pkg.branch then
         vim.list_extend(args, { "-b", pkg.branch })
     end
@@ -170,7 +190,8 @@ local function clone(pkg, counter, build_queue)
     end)
 end
 
-local function get_git_hash(dir)
+local function get_git_info(dir)
+    local res = {}
     local first_line = function(path)
         local file = io.open(path)
         if file then
@@ -180,7 +201,12 @@ local function get_git_hash(dir)
         end
     end
     local head_ref = first_line(dir .. "/.git/HEAD")
-    return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
+    if head_ref then
+        head_ref = head_ref:gsub("ref: ", "")
+        res.branch = head_ref and head_ref:gsub("refs/heads/", "")
+        res.hash = head_ref and first_line(dir .. "/.git/" .. head_ref)
+    end
+    return res
 end
 
 local function log_update_changes(pkg, prev_hash, cur_hash)
@@ -288,6 +314,29 @@ local function new_counter(total, callback)
     end)
 end
 
+local function diff_resolve()
+    if not vim.tbl_isempty(Diff) then
+        for _, x in pairs(Diff) do
+            if x.dir then
+                uv.fs_rename(x.dir[1], x.dir[2])
+                Packages[x.name].dir = x.dir[2]
+            end
+            if x.branch then
+                local args = { "checkout", "--quiet", x.branch }
+                call_proc("git", args, Packages[x.name].dir, function(ok)
+                    if ok then
+                        Packages[x.name].branch = x.branch
+                    else
+                        error("Branch doesn't exists")
+                    end
+                end)
+            end
+        end
+        lock_write()
+        Diff = {}
+    end
+end
+
 -- Boilerplate around operations (autocmds, counter initialization, etc.)
 local function exe_op(op, fn, pkgs)
     if #pkgs == 0 then
@@ -316,13 +365,12 @@ local function exe_op(op, fn, pkgs)
     end
 end
 
-local function sort_by_name(t)
-    table.sort(t, function(a, b) return a.name < b.name end)
-end
-
 local function list()
     local installed = vim.tbl_filter(Filter.installed, Lock)
     local removed = vim.tbl_filter(Filter.removed, Lock)
+    local function sort_by_name(t)
+        table.sort(t, function(a, b) return a.name < b.name end)
+    end
     sort_by_name(installed)
     sort_by_name(removed)
     local markers = { "+", "*" }
@@ -349,12 +397,13 @@ local function register(pkg)
     end
     local opt = pkg.opt or Config.opt and pkg.opt == nil
     local dir = Config.path .. (opt and "opt/" or "start/") .. name
+    local git_info = get_git_info(dir)
     Packages[name] = {
         name = name,
-        branch = pkg.branch,
+        branch = pkg.branch or git_info.branch,
         dir = dir,
         status = uv.fs_stat(dir) and Status.INSTALLED or Status.LISTED,
-        hash = get_git_hash(dir),
+        hash = git_info.hash,
         pin = pkg.pin,
         build = pkg.build or pkg.run,
         url = url,
@@ -368,16 +417,23 @@ end
 
 -- stylua: ignore
 local paq = setmetatable({
-    install = function() exe_op("install", clone, vim.tbl_filter(Filter.to_install, Packages)) end,
-    update = function() exe_op("update", pull, vim.tbl_filter(Filter.to_update, Packages)) end,
-    clean = function() exe_op("remove", remove, find_unlisted()) end,
-    sync = function(self) self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(Filter.not_removed, Packages)) end,
+    install = function() diff_resolve() exe_op("install", clone, vim.tbl_filter(Filter.to_install, Packages)) end,
+    update = function() diff_resolve() exe_op("update", pull, vim.tbl_filter(Filter.to_update, Packages)) end,
+    clean = function() diff_resolve() exe_op("remove", remove, find_unlisted()) end,
+    sync = function(self) diff_resolve() self:clean() exe_op("sync", clone_or_pull, vim.tbl_filter(Filter.not_removed, Packages)) end,
     setup = function(self, args) for k, v in pairs(args) do Config[k] = v end return self end,
     list = list,
     log_open = function() vim.cmd("sp " .. Files.log) end,
     log_clean = function() return assert(uv.fs_unlink(Files.log)) and vim.notify(" Paq: log file deleted") end,
     register = register,
-}, { __call = function(self, tbl) Packages = {} vim.tbl_map(register, tbl) Lock = lock_load() return self end,
+}, {
+    __call = function(self, pkgs)
+        Packages = {}
+        vim.tbl_map(register, pkgs)
+        Lock = lock_load()
+        Diff = lock_compare(vim.tbl_values(Packages))
+        return self
+    end,
 })
 
 for cmd_name, fn in pairs {
