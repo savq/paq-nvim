@@ -52,7 +52,7 @@ require "paq" {
 }
 ```
 
-Then, source your configuration (using `:source %` or `:luafile %`) and run `:PaqInstall`.
+Then, source your configuration (executing `:source $MYVIMRC`) and run `:PaqInstall`.
 
 
 **NOTICE:**
