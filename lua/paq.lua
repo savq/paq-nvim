@@ -131,7 +131,7 @@ local function lock_compare(pkgs)
     return res
 end
 
-local function call_proc(process, args, cwd, cb, print_stdout)
+local function run(process, args, cwd, cb, print_stdout)
     local log = uv.fs_open(Config.log, "a+", 0x1A4)
     local stderr = uv.new_pipe(false)
     stderr:open(log)
@@ -160,10 +160,11 @@ local function run_build(pkg)
         local ok = pcall(vim.cmd, pkg.build)
         report(pkg.name, Messages.build, ok and "ok" or "err")
     elseif t == "string" then
+        local args = {}
         for word in pkg.build:gmatch("%S+") do
             table.insert(args, word)
         end
-        call_proc(table.remove(args, 1), args, pkg.dir, function(ok)
+        run(table.remove(args, 1), args, pkg.dir, function(ok)
             report(pkg.name, Messages.build, ok and "ok" or "err")
         end)
     end
@@ -175,7 +176,7 @@ local function clone(pkg, counter, build_queue)
         vim.list_extend(args, { "-b", pkg.branch })
     end
     table.insert(args, pkg.dir)
-    call_proc("git", args, nil, function(ok)
+    run("git", args, nil, function(ok)
         if ok then
             pkg.status = Status.CLONED
             lock_write()
@@ -224,7 +225,7 @@ end
 
 local function pull(pkg, counter, build_queue)
     local prev_hash = Lock[pkg.name] and Lock[pkg.name].hash or pkg.hash
-    call_proc("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
+    run("git", { "pull", "--recurse-submodules", "--update-shallow" }, pkg.dir, function(ok)
         if not ok then
             counter(pkg.name, Messages.update, "err")
         else
@@ -341,7 +342,7 @@ local function reclone(pkg)
         vim.list_extend(args, { "-b", pkg.branch })
     end
     table.insert(args, pkg.dir)
-    call_proc("git", args, nil, function(ok)
+    run("git", args, nil, function(ok)
         if not ok then return end
         pkg.status = Status.INSTALLED
         if pkg.build then
