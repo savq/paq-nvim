@@ -23,6 +23,8 @@ local Status = {
     UPDATED = 2,
     REMOVED = 3,
     TO_INSTALL = 4,
+    TO_MOVE = 5,
+    TO_RECLONE = 6,
 }
 
 -- Tables with packages' information
@@ -37,6 +39,8 @@ local Filter = {
     removed     = function(p) return p.status == Status.REMOVED end,
     to_install  = function(p) return p.status == Status.TO_INSTALL end,
     to_update   = function(p) return p.status ~= Status.REMOVED and p.status ~= Status.TO_INSTALL and not p.pin end,
+    to_move     = function(p) return p.status == Status.TO_MOVE end,
+    to_reclone  = function(p) return p.status == Status.TO_RECLONE end,
 }
 
 -- Copy environment variables once. Doing it for every process seems overkill.
@@ -103,32 +107,34 @@ local function lock_load()
         local data = assert(uv.fs_read(file, stat.size, 0))
         assert(uv.fs_close(file))
         local ok, result = pcall(vim.json.decode, data)
-        if ok and not vim.tbl_isempty(result) then
-            return result
+        if ok then
+            Lock = not vim.tbl_isempty(result) and result or Packages
+            -- Repopulate build field so 'vim.deep_equal' works
+            for name, pkg in pairs(result) do
+              pkg.build = Packages[name].build
+            end
         end
     end
     lock_write()
-    return Packages
+    Lock = Packages
 end
 
-local function lock_compare(pkgs)
-    local res = {}
-    for _, x in pairs(pkgs) do
-        local lpkg = Lock[x.name]
-        if lpkg and Filter.not_removed(lpkg) and not vim.deep_equal(lpkg, x) then
-            local p = {}
-            for _, k in pairs({ "dir", "branch", "url" }) do
-                if lpkg[k] ~= x[k] then
-                    p[k] = { lpkg[k], x[k] }
+local function diff_populate()
+    for name, lock_pkg in pairs(Lock) do
+        local pack_pkg = Packages[name]
+        if lock_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
+            for k, v in pairs {
+                dir = Status.TO_MOVE,
+                branch = Status.TO_RECLONE,
+                url = Status.TO_RECLONE,
+            } do
+                if lock_pkg[k] ~= pack_pkg[k] then
+                    Diff[name] = lock_pkg
+                    Diff[name].status = v
                 end
-            end
-            if not vim.tbl_isempty(p) then
-                p.name = x.name
-                table.insert(res, p)
             end
         end
     end
-    return res
 end
 
 local function run(process, args, cwd, cb, print_stdout)
@@ -351,17 +357,19 @@ local function reclone(pkg)
     end)
 end
 
+local function move(src, dst)
+    uv.fs_rename(src.dir, dst.dir)
+    dst.dir = dst.dir
+    dst.status = Status.INSTALLED
+end
+
 local function diff_resolve()
     if not vim.tbl_isempty(Diff) then
-        for _, x in pairs(Diff) do
-            local pkg = Packages[x.name]
-            if x.dir then
-                uv.fs_rename(x.dir[1], x.dir[2])
-                pkg.dir = x.dir[2]
-                pkg.hash = get_git_hash(pkg.dir)
-                pkg.status = Status.INSTALLED
-            else
-                reclone(pkg)
+        for name, diff_pkg in pairs(Diff) do
+            if Filter.to_move(diff_pkg) then
+                move(diff_pkg, Packages[name])
+            elseif Filter.to_reclone(diff_pkg) then
+                reclone(Packages[name])
             end
         end
         lock_write()
@@ -432,9 +440,11 @@ local paq = setmetatable({
 }, {
     __call = function(self, pkgs)
         Packages = {}
+        Diff = {}
         vim.tbl_map(register, pkgs)
-        Lock = lock_load()
-        Diff = lock_compare(vim.tbl_values(Packages))
+        lock_load()
+        diff_populate()
+        vim.print(Diff)
         return self
     end,
 })
