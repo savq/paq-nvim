@@ -1,3 +1,5 @@
+-- VARS: {{{
+
 local uv = vim.loop
 
 local Config = {
@@ -17,6 +19,11 @@ local Messages = {
     build = { ok = "Built", err = "Failed to build" },
 }
 
+-- Tables with packages' information
+local Lock = {}
+local Packages = {} -- "name" = {options...} pairs
+local Diff = {}
+
 local Status = {
     INSTALLED = 0,
     CLONED = 1,
@@ -26,11 +33,6 @@ local Status = {
     TO_MOVE = 5,
     TO_RECLONE = 6,
 }
-
--- Tables with packages' information
-local Lock = {}
-local Packages = {} -- "name" = {options...} pairs
-local Diff = {}
 
 -- stylua: ignore
 local Filter = {
@@ -50,13 +52,8 @@ for var, val in pairs(uv.os_environ()) do
 end
 table.insert(Env, "GIT_TERMINAL_PROMPT=0")
 
-local function report(name, msg_op, result, n, total)
-    local count = n and string.format(" [%d/%d]", n, total) or ""
-    vim.notify(
-        string.format(" Paq:%s %s %s", count, msg_op[result], name),
-        result == "err" and vim.log.levels.ERROR
-    )
-end
+-- }}}
+-- UTILS: {{{
 
 local function find_unlisted()
     local unlisted = {}
@@ -79,6 +76,121 @@ local function find_unlisted()
     end
     return unlisted
 end
+
+local function get_git_hash(dir)
+    local first_line = function(path)
+        local file = io.open(path)
+        if file then
+            local line = file:read()
+            file:close()
+            return line
+        end
+    end
+    local head_ref = first_line(dir .. "/.git/HEAD")
+    return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
+end
+
+local function run(process, args, cwd, cb, print_stdout)
+    local log = uv.fs_open(Config.log, "a+", 0x1A4)
+    local stderr = uv.new_pipe(false)
+    stderr:open(log)
+    local handle, pid
+    handle, pid = uv.spawn(
+        process,
+        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = Env },
+        vim.schedule_wrap(function(code)
+            uv.fs_close(log)
+            stderr:close()
+            handle:close()
+            cb(code == 0)
+        end)
+    )
+    if not handle then
+        vim.notify(string.format(" Paq: Failed to spawn %s (%s)", process, pid))
+    end
+end
+
+-- Return an interator that walks `dir` in post-order.
+local function walkdir(dir)
+    return coroutine.wrap(function()
+        local handle = uv.fs_scandir(dir)
+        while handle do
+            local name, t = uv.fs_scandir_next(handle)
+            if not name then
+                return
+            elseif t == "directory" then
+                for child, t in walkdir(dir .. "/" .. name) do
+                    coroutine.yield(child, t)
+                end
+            end
+            coroutine.yield(dir .. "/" .. name, t)
+        end
+    end)
+end
+
+local function rmdir(dir)
+    for name, t in walkdir(dir) do
+        local ok = (t == "directory") and uv.fs_rmdir(name) or uv.fs_unlink(name)
+        if not ok then
+            return ok
+        end
+    end
+    return uv.fs_rmdir(dir)
+end
+
+
+-- }}}
+-- LOGGING: {{{
+
+local function log_update_changes(pkg, prev_hash, cur_hash)
+    local output = { "\n\n" .. pkg.name .. " updated:\n" }
+    local stdout = uv.new_pipe()
+    local options = {
+        args = { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash },
+        cwd = pkg.dir,
+        stdio = { nil, stdout, nil },
+    }
+    local handle
+    handle, _ = uv.spawn("git", options, function(code)
+        assert(code == 0, "Exited(" .. code .. ")")
+        handle:close()
+        local log = uv.fs_open(Config.log, "a+", 0x1A4)
+        uv.fs_write(log, output, nil, nil)
+        uv.fs_close(log)
+    end)
+    stdout:read_start(function(err, data)
+        assert(not err, err)
+        table.insert(output, data)
+    end)
+end
+
+local function report(name, msg_op, result, n, total)
+    local count = n and string.format(" [%d/%d]", n, total) or ""
+    vim.notify(
+        string.format(" Paq:%s %s %s", count, msg_op[result], name),
+        result == "err" and vim.log.levels.ERROR or vim.log.levels.INFO
+    )
+end
+
+-- Object to track result of operations (installs, updates, etc.)
+local function new_counter(total, callback)
+    return coroutine.wrap(function()
+        local c = { ok = 0, err = 0, nop = 0 }
+        while c.ok + c.err + c.nop < total do
+            local name, msg_op, result = coroutine.yield(true)
+            c[result] = c[result] + 1
+            if result ~= "nop" or Config.verbose then
+                report(name, msg_op, result, c.ok + c.nop, total)
+            end
+        end
+        callback(c.ok, c.err, c.nop)
+        return true
+    end)
+end
+
+
+-- }}}
+-- LOCKFILE: {{{
 
 local function lock_write()
     -- remove run key since can have a function in it, and
@@ -109,7 +221,7 @@ local function lock_load()
         local ok, result = pcall(vim.json.decode, data)
         if ok then
             Lock = not vim.tbl_isempty(result) and result or Packages
-            -- Repopulate build field so 'vim.deep_equal' works
+            -- Repopulate 'build' key so 'vim.deep_equal' works
             for name, pkg in pairs(result) do
               pkg.build = Packages[name].build
             end
@@ -119,62 +231,8 @@ local function lock_load()
     Lock = Packages
 end
 
-local function diff_populate()
-    for name, lock_pkg in pairs(Lock) do
-        local pack_pkg = Packages[name]
-        if lock_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
-            for k, v in pairs {
-                dir = Status.TO_MOVE,
-                branch = Status.TO_RECLONE,
-                url = Status.TO_RECLONE,
-            } do
-                if lock_pkg[k] ~= pack_pkg[k] then
-                    Diff[name] = lock_pkg
-                    Diff[name].status = v
-                end
-            end
-        end
-    end
-end
-
-local function run(process, args, cwd, cb, print_stdout)
-    local log = uv.fs_open(Config.log, "a+", 0x1A4)
-    local stderr = uv.new_pipe(false)
-    stderr:open(log)
-    local handle, pid
-    handle, pid = uv.spawn(
-        process,
-        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = Env },
-        vim.schedule_wrap(function(code)
-            uv.fs_close(log)
-            stderr:close()
-            handle:close()
-            cb(code == 0)
-        end)
-    )
-    if not handle then
-        vim.notify(string.format(" Paq: Failed to spawn %s (%s)", process, pid))
-    end
-end
-
-local function run_build(pkg)
-    local t = type(pkg.build)
-    if t == "function" then
-        local ok = pcall(pkg.build)
-        report(pkg.name, Messages.build, ok and "ok" or "err")
-    elseif t == "string" and pkg.build:sub(1, 1) == ":" then
-        local ok = pcall(vim.cmd, pkg.build)
-        report(pkg.name, Messages.build, ok and "ok" or "err")
-    elseif t == "string" then
-        local args = {}
-        for word in pkg.build:gmatch("%S+") do
-            table.insert(args, word)
-        end
-        run(table.remove(args, 1), args, pkg.dir, function(ok)
-            report(pkg.name, Messages.build, ok and "ok" or "err")
-        end)
-    end
-end
+-- }}}
+-- PKGS: {{{
 
 local function clone(pkg, counter, build_queue)
     local args = vim.list_extend({ "clone", pkg.url }, Config.clone_args)
@@ -191,41 +249,6 @@ local function clone(pkg, counter, build_queue)
             end
         end
         counter(pkg.name, Messages.install, ok and "ok" or "err")
-    end)
-end
-
-local function get_git_hash(dir)
-    local first_line = function(path)
-        local file = io.open(path)
-        if file then
-            local line = file:read()
-            file:close()
-            return line
-        end
-    end
-    local head_ref = first_line(dir .. "/.git/HEAD")
-    return head_ref and first_line(dir .. "/.git/" .. head_ref:gsub("ref: ", ""))
-end
-
-local function log_update_changes(pkg, prev_hash, cur_hash)
-    local output = { "\n\n" .. pkg.name .. " updated:\n" }
-    local stdout = uv.new_pipe()
-    local options = {
-        args = { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash },
-        cwd = pkg.dir,
-        stdio = { nil, stdout, nil },
-    }
-    local handle
-    handle, _ = uv.spawn("git", options, function(code)
-        assert(code == 0, "Exited(" .. code .. ")")
-        handle:close()
-        local log = uv.fs_open(Config.log, "a+", 0x1A4)
-        uv.fs_write(log, output, nil, nil)
-        uv.fs_close(log)
-    end)
-    stdout:read_start(function(err, data)
-        assert(not err, err)
-        table.insert(output, data)
     end)
 end
 
@@ -259,124 +282,6 @@ local function clone_or_pull(pkg, counter, build_queue)
     end
 end
 
--- Return an interator that walks `dir` in post-order.
-local function walkdir(dir)
-    return coroutine.wrap(function()
-        local handle = uv.fs_scandir(dir)
-        while handle do
-            local name, t = uv.fs_scandir_next(handle)
-            if not name then
-                return
-            elseif t == "directory" then
-                for child, t in walkdir(dir .. "/" .. name) do
-                    coroutine.yield(child, t)
-                end
-            end
-            coroutine.yield(dir .. "/" .. name, t)
-        end
-    end)
-end
-
-local function rmdir(dir)
-    for name, t in walkdir(dir) do
-        local ok = (t == "directory") and uv.fs_rmdir(name) or uv.fs_unlink(name)
-        if not ok then
-            return ok
-        end
-    end
-    return uv.fs_rmdir(dir)
-end
-
-local function remove(p, counter)
-    local ok = rmdir(p.dir)
-    counter(p.name, Messages.remove, ok and "ok" or "err")
-    if ok then
-        Packages[p.name] = { name = p.name, status = Status.REMOVED }
-        lock_write()
-    end
-end
-
--- Object to track result of operations (installs, updates, etc.)
-local function new_counter(total, callback)
-    return coroutine.wrap(function()
-        local c = { ok = 0, err = 0, nop = 0 }
-        while c.ok + c.err + c.nop < total do
-            local name, msg_op, result = coroutine.yield(true)
-            c[result] = c[result] + 1
-            if result ~= "nop" or Config.verbose then
-                report(name, msg_op, result, c.ok + c.nop, total)
-            end
-        end
-        callback(c.ok, c.err, c.nop)
-        return true
-    end)
-end
-
--- Boilerplate around operations (autocmds, counter initialization, etc.)
-local function exe_op(op, fn, pkgs)
-    if #pkgs == 0 then
-        vim.notify(" Paq: Nothing to " .. op)
-        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
-        return
-    end
-
-    local build_queue = {}
-
-    local function after(ok, err, nop)
-        local summary = " Paq: %s complete. %d ok; %d errors;" .. (nop > 0 and " %d no-ops" or "")
-        vim.notify(string.format(summary, op, ok, err, nop))
-        vim.cmd("packloadall! | silent! helptags ALL")
-        if #build_queue ~= 0 then
-            exe_op("build", run_build, build_queue)
-        end
-        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
-    end
-
-    local counter = new_counter(#pkgs, after)
-    counter() -- Initialize counter
-
-    for _, pkg in pairs(pkgs) do
-        fn(pkg, counter, build_queue)
-    end
-end
-
-local function reclone(pkg)
-    local ok = rmdir(pkg.dir)
-    if not ok then return end
-    local args = vim.list_extend({ "clone", pkg.url }, Config.clone_args)
-    if pkg.branch then
-        vim.list_extend(args, { "-b", pkg.branch })
-    end
-    table.insert(args, pkg.dir)
-    run("git", args, nil, function(ok)
-        if not ok then return end
-        pkg.status = Status.INSTALLED
-        if pkg.build then
-            run_build(pkg)
-        end
-    end)
-end
-
-local function move(src, dst)
-    uv.fs_rename(src.dir, dst.dir)
-    dst.dir = dst.dir
-    dst.status = Status.INSTALLED
-end
-
-local function diff_resolve()
-    if not vim.tbl_isempty(Diff) then
-        for name, diff_pkg in pairs(Diff) do
-            if Filter.to_move(diff_pkg) then
-                move(diff_pkg, Packages[name])
-            elseif Filter.to_reclone(diff_pkg) then
-                reclone(Packages[name])
-            end
-        end
-        lock_write()
-        Diff = {}
-    end
-end
-
 local function list()
     local installed = vim.tbl_filter(Filter.installed, Lock)
     local removed = vim.tbl_filter(Filter.removed, Lock)
@@ -394,6 +299,50 @@ local function list()
             end
         end
     end
+end
+
+local function move(src, dst)
+    uv.fs_rename(src.dir, dst.dir)
+    dst.dir = dst.dir
+    dst.status = Status.INSTALLED
+end
+
+local function run_build(pkg)
+    local t = type(pkg.build)
+    if t == "function" then
+        local ok = pcall(pkg.build)
+        report(pkg.name, Messages.build, ok and "ok" or "err")
+    elseif t == "string" and pkg.build:sub(1, 1) == ":" then
+        local ok = pcall(vim.cmd, pkg.build)
+        report(pkg.name, Messages.build, ok and "ok" or "err")
+    elseif t == "string" then
+        local args = {}
+        for word in pkg.build:gmatch("%S+") do
+            table.insert(args, word)
+        end
+        run(table.remove(args, 1), args, pkg.dir, function(ok)
+            report(pkg.name, Messages.build, ok and "ok" or "err")
+        end)
+    end
+end
+
+local function reclone(pkg)
+    local ok = rmdir(pkg.dir)
+    if not ok then
+        return
+    end
+    local args = vim.list_extend({ "clone", pkg.url }, Config.clone_args)
+    if pkg.branch then
+        vim.list_extend(args, { "-b", pkg.branch })
+    end
+    table.insert(args, pkg.dir)
+    run("git", args, nil, function(ok)
+        if not ok then return end
+        pkg.status = Status.INSTALLED
+        if pkg.build then
+            run_build(pkg)
+        end
+    end)
 end
 
 local function register(pkg)
@@ -424,7 +373,80 @@ local function register(pkg)
     end
 end
 
--- PUBLIC API:
+local function remove(p, counter)
+    local ok = rmdir(p.dir)
+    counter(p.name, Messages.remove, ok and "ok" or "err")
+    if ok then
+        Packages[p.name] = { name = p.name, status = Status.REMOVED }
+        lock_write()
+    end
+end
+
+-- Boilerplate around operations (autocmds, counter initialization, etc.)
+local function exe_op(op, fn, pkgs)
+    if #pkgs == 0 then
+        vim.notify(" Paq: Nothing to " .. op)
+        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
+        return
+    end
+
+    local build_queue = {}
+
+    local function after(ok, err, nop)
+        local summary = " Paq: %s complete. %d ok; %d errors;" .. (nop > 0 and " %d no-ops" or "")
+        vim.notify(string.format(summary, op, ok, err, nop))
+        vim.cmd("packloadall! | silent! helptags ALL")
+        if #build_queue ~= 0 then
+            exe_op("build", run_build, build_queue)
+        end
+        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
+    end
+
+    local counter = new_counter(#pkgs, after)
+    counter() -- Initialize counter
+
+    for _, pkg in pairs(pkgs) do
+        fn(pkg, counter, build_queue)
+    end
+end
+
+-- }}}
+-- DIFFS: {{{
+
+local function diff_populate()
+    for name, lock_pkg in pairs(Lock) do
+        local pack_pkg = Packages[name]
+        if lock_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
+            for k, v in pairs {
+                dir = Status.TO_MOVE,
+                branch = Status.TO_RECLONE,
+                url = Status.TO_RECLONE,
+            } do
+                if lock_pkg[k] ~= pack_pkg[k] then
+                    Diff[name] = lock_pkg
+                    Diff[name].status = v
+                end
+            end
+        end
+    end
+end
+
+local function diff_resolve()
+    if not vim.tbl_isempty(Diff) then
+        for name, diff_pkg in pairs(Diff) do
+            if Filter.to_move(diff_pkg) then
+                move(diff_pkg, Packages[name])
+            elseif Filter.to_reclone(diff_pkg) then
+                reclone(Packages[name])
+            end
+        end
+        lock_write()
+        Diff = {}
+    end
+end
+
+-- }}}
+-- PUBLIC API: {{{
 
 -- stylua: ignore
 local paq = setmetatable({
@@ -477,3 +499,6 @@ do
 end
 
 return paq
+
+-- }}}
+-- vim: foldmethod=marker foldlevel=1
