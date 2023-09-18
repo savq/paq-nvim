@@ -223,7 +223,7 @@ local function lock_load()
             Lock = not vim.tbl_isempty(result) and result or Packages
             -- Repopulate 'build' key so 'vim.deep_equal' works
             for name, pkg in pairs(result) do
-              pkg.build = Packages[name].build
+              pkg.build = Packages[name] and Packages[name].build or nil
             end
         end
     end
