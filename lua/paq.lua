@@ -304,7 +304,7 @@ end
 
 local function move(src, dst)
     uv.fs_rename(src.dir, dst.dir)
-    dst.dir = dst.dir
+    dst.dir = src.dir
     dst.status = Status.INSTALLED
 end
 
