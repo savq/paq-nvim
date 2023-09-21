@@ -226,9 +226,10 @@ local function lock_load()
               pkg.build = Packages[name] and Packages[name].build or nil
             end
         end
+    else
+        lock_write()
+        Lock = Packages
     end
-    lock_write()
-    Lock = Packages
 end
 
 -- }}}
