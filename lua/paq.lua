@@ -304,7 +304,6 @@ end
 
 local function move(src, dst)
     uv.fs_rename(src.dir, dst.dir)
-    dst.dir = src.dir
     dst.status = Status.INSTALLED
 end
 
@@ -417,7 +416,7 @@ end
 local function diff_populate()
     for name, lock_pkg in pairs(Lock) do
         local pack_pkg = Packages[name]
-        if lock_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
+        if pack_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
             for k, v in pairs {
                 dir = Status.TO_MOVE,
                 branch = Status.TO_RECLONE,
@@ -467,7 +466,6 @@ local paq = setmetatable({
         vim.tbl_map(register, pkgs)
         lock_load()
         diff_populate()
-        vim.print(Diff)
         return self
     end,
 })
