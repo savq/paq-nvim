@@ -155,35 +155,52 @@ imported as `paq`, the functions are:
   following keys:
 
     `path`
-    String that determines where Paq should install packages. It overwrites
-    the default value for |paq-dir|. `path` should still be a valid |packages|
-    directory, Paq won't modify the 'runtimepath'. This option exists mainly
-    to allow testing without altering a user's configuration.
+     String that determines where Paq should install packages. It overwrites
+     the default value for |paq-dir|. `path` should still be a valid |packages|
+     directory, Paq won't modify the 'runtimepath'. This option exists mainly
+     to allow testing without altering a user's configuration.
 
-    Default value: |paq-dir|
+     Default value: |paq-dir|
 
     `opt`
-    Boolean that changes if, by default, plugins are eagerly loaded or lazy
-    loaded. If set, the package will be in the optional packages
-    directory. See |packages| and |packadd|.
+     Boolean that changes if, by default, plugins are eagerly loaded or lazy
+     loaded. If set, the package will be in the optional packages directory.
+     See |packages| and |packadd|.
 
-    Default value: `false`
+     Default value: `false`
 
     `url_format`
-    String that determines the format used for constructing the URL of a
-    package repository. It uses the Lua format syntax, and should only receive
-    a single string argument `"%s"` (`[1]` in |paq-options| below).
+     String that determines the format used for constructing the URL of a
+     package repository. It uses the Lua format syntax, and should only
+     receive a single string argument `"%s"` (`[1]` in |paq-options| below).
 
-    This can be set to use SSH instead of HTTPS, to use a different forge
-    than GitHub, etc.
+     This can be set to use SSH instead of HTTPS, to use a different forge
+     than GitHub, etc.
 
-    Default value: `"https://github.com/%s.git"`
+     Default value: `"https://github.com/%s.git"`
 
     `verbose`
-    Boolean that determines whether paq should print `(up-to-date) pkg` for
-    packages that were not updated.
+     Boolean that determines whether paq should print `(up-to-date) pkg` for
+     packages that were not updated.
 
-    Default value: `false`
+     Default value: `false`
+
+    `log`
+     Path to log file.
+
+     Default value: neovim >= 8.0 `XDG_STATE_HOME/nvim/paq`
+                    neovim <= 7.0 `XDG_CACHE_HOME/nvim/paq`
+
+    `lock`
+     Path to lock file. Paq uses a lockfile to represent the current state of
+     the currently installed packages. If doesn't found any lockfile it will
+     create a new one.
+
+    `clone_args`
+     Arguments passed to git clone when cloning a package.
+
+     Default values: --depth=1 --recurse-submodules --shallow-submodules
+                     --no-single-branch
 
   Note that unlike most Lua plugins, paq:setup is a method, not a function.
   This allows chaining it with the list of packages without needing to
