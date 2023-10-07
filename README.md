@@ -7,7 +7,7 @@ Paq is a Neovim package manager written in Lua.
 
 - __Simple__: Easy to use and configure
 - __Fast__:   Installs and updates packages concurrently using Neovim's event-loop
-- __Small__:  Around 250 LOC
+- __Small__:  Around 500 LOC
 
 
 ## Requirements
@@ -75,6 +75,7 @@ Then, source your configuration (executing `:source $MYVIMRC`) and run `:PaqInst
 | branch | string   | Branch of the repository                                  |
 | build  | function | Lua function to run after install/update                  |
 | build  | string   | Shell command to run after install/update                 |
+| build  | string   | Prefixed with a ':' will run a vim command                |
 | opt    | boolean  | Optional packages are not loaded on startup               |
 | pin    | boolean  | Pinned packages are not updated                           |
 | url    | string   | URL of the remote repository, useful for non-GitHub repos |
