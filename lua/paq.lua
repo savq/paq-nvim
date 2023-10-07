@@ -431,6 +431,7 @@ local function diff_populate()
     end
 end
 
+
 local function diff_resolve()
     if not vim.tbl_isempty(Diff) then
         for name, diff_pkg in pairs(Diff) do
@@ -458,7 +459,6 @@ local paq = setmetatable({
     list = list,
     log_open = function() vim.cmd("sp " .. Config.log) end,
     log_clean = function() return assert(uv.fs_unlink(Config.log)) and vim.notify(" Paq: log file deleted") end,
-    register = register,
 }, {
     __call = function(self, pkgs)
         Packages = {}
