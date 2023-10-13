@@ -2,6 +2,13 @@ Visit the [releases page](https://github.com/savq/paq-nvim/releases) for more de
 
 # Deprecations
 
+### v2.0.0
+
+- The `run` option was deprecated. Use `build` instead.
+- `:PaqRunHooks` was replaced by `:PaqBuild`.
+- Calling `require(paq).register` directly was removed.
+
+
 ### v1.0.0.
 
 - The `hook` option was removed (use `run` instead).
@@ -9,6 +16,7 @@ Visit the [releases page](https://github.com/savq/paq-nvim/releases) for more de
 - `paq-nvim` module alias was removed. call `require 'paq'` instead.
 
 See #87 for more details.
+
 
 ### v0.9.0.
 
