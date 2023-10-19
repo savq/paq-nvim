@@ -30,9 +30,8 @@ local Messages = {
     build = { ok = "Built", err = "Failed to build" },
 }
 
-local Lock = {} -- Table of pgks loaded from the lockfile
+local Lock = {}     -- Table of pgks loaded from the lockfile
 local Packages = {} -- Table of pkgs loaded from the user configuration
-local Diff = {} -- Table of pkgs that needs to be resolved
 
 ---@enum Status
 local Status = {
@@ -338,8 +337,11 @@ end
 ---@param src Package
 ---@param dst Package
 local function move(src, dst)
-    uv.fs_rename(src.dir, dst.dir)
-    dst.status = Status.INSTALLED
+    local ok = uv.fs_rename(src.dir, dst.dir)
+    if ok then
+        dst.status = Status.INSTALLED
+        lock_write()
+    end
 end
 
 ---@param pkg Package
@@ -363,7 +365,7 @@ local function run_build(pkg)
 end
 
 ---@param pkg Package
-local function reclone(pkg)
+local function reclone(pkg, counter, build_queue)
     local ok = rmdir(pkg.dir)
     if not ok then
         return
@@ -374,12 +376,23 @@ local function reclone(pkg)
     end
     table.insert(args, pkg.dir)
     run("git", args, nil, function(ok)
-        if not ok then return end
-        pkg.status = Status.INSTALLED
-        if pkg.build then
-            run_build(pkg)
+        if ok then
+            pkg.status = Status.INSTALLED
+            pkg.hash = get_git_hash(pkg.dir)
+            lock_write()
+            if pkg.build then
+                table.insert(build_queue, pkg)
+            end
         end
     end)
+end
+
+local function resolve(pkg, counter, build_queue)
+    if Filter.to_move(pkg) then
+        move(pkg, Packages[pkg.name])
+    elseif Filter.to_reclone(pkg) then
+        reclone(Packages[pkg.name], counter, build_queue)
+    end
 end
 
 ---@param pkg Package
@@ -427,15 +440,19 @@ end
 ---| '"update"'
 ---| '"remove"'
 ---| '"build"'
+---| '"resolve"'
 ---| '"sync"'
 
 ---Boilerplate around operations (autocmds, counter initialization, etc.)
 ---@param op Operation
 ---@param fn function
 ---@param pkgs Package[]
-local function exe_op(op, fn, pkgs)
+---@param silent boolean?
+local function exe_op(op, fn, pkgs, silent)
     if #pkgs == 0 then
-        vim.notify(" Paq: Nothing to " .. op)
+        if not silent then
+            vim.notify(" Paq: Nothing to " .. op)
+        end
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
         return
     end
@@ -463,7 +480,8 @@ end
 -- }}}
 -- DIFFS: {{{
 
-local function diff_populate()
+local function diff_gather()
+    local diffs = {}
     for name, lock_pkg in pairs(Lock) do
         local pack_pkg = Packages[name]
         if pack_pkg and Filter.not_removed(lock_pkg) and not vim.deep_equal(lock_pkg, pack_pkg) then
@@ -473,28 +491,15 @@ local function diff_populate()
                 url = Status.TO_RECLONE,
             } do
                 if lock_pkg[k] ~= pack_pkg[k] then
-                    Diff[name] = lock_pkg
-                    Diff[name].status = v
+                    lock_pkg.status = v
+                    table.insert(diffs, lock_pkg)
                 end
             end
         end
     end
+    return diffs
 end
 
-
-local function diff_resolve()
-    if not vim.tbl_isempty(Diff) then
-        for name, diff_pkg in pairs(Diff) do
-            if Filter.to_move(diff_pkg) then
-                move(diff_pkg, Packages[name])
-            elseif Filter.to_reclone(diff_pkg) then
-                reclone(Packages[name])
-            end
-        end
-        lock_write()
-        Diff = {}
-    end
-end
 
 -- }}}
 -- PUBLIC API: {{{
@@ -504,26 +509,17 @@ local paq = {}
 ---Installs all packages listed in your configuration. If a package is already
 ---installed, the function ignores it. If a package has a `build` argument,
 ---it'll be executed after the package is installed.
-function paq.install()
-    diff_resolve()
-    exe_op("install", clone, vim.tbl_filter(Filter.to_install, Packages))
-end
+function paq.install() exe_op("install", clone, vim.tbl_filter(Filter.to_install, Packages)) end
 
 ---Updates the installed packages listed in your configuration. If a package
 ---hasn't been installed with |PaqInstall|, the function ignores it. If a
 ---package had changes and it has a `build` argument, then the `build` argument
 ---will be executed.
-function paq.update()
-    diff_resolve()
-    exe_op("update", pull, vim.tbl_filter(Filter.to_update, Packages))
-end
+function paq.update() exe_op("update", pull, vim.tbl_filter(Filter.to_update, Packages)) end
 
 ---Removes packages found on |paq-dir| that aren't listed in your
 ---configuration.
-function paq.clean()
-    diff_resolve()
-    exe_op("remove", remove, find_unlisted())
-end
+function paq.clean() exe_op("remove", remove, find_unlisted()) end
 
 ---Executes |paq.clean|, |paq.update|, and |paq.install|. Note that all
 ---paq operations are performed asynchronously, so messages might be printed
@@ -561,6 +557,7 @@ function paq.list()
 end
 
 function paq.log_open() vim.cmd("sp " .. Config.log) end
+
 function paq.log_clean() return assert(uv.fs_unlink(Config.log)) and vim.notify(" Paq: log file deleted") end
 
 local meta = {}
@@ -580,10 +577,9 @@ local meta = {}
 ---See |luaref-langFuncCalls|.
 function meta:__call(pkgs)
     Packages = {}
-    Diff = {}
     vim.tbl_map(register, pkgs)
     lock_load()
-    diff_populate()
+    exe_op("resolve", resolve, diff_gather(), true)
     return self
 end
 
