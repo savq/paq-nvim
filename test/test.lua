@@ -1,6 +1,5 @@
 local TESTPATH = vim.fn.stdpath("data") .. "/site/pack/test/"
 local uv = vim.loop
-local vim = require("paq.compat")
 
 package.loaded.paq = nil
 local paq = require("paq"):setup({ path = TESTPATH })
@@ -12,9 +11,9 @@ local PACKAGES = {
 
     { as = "wiki", url = "https://github.com/lervag/wiki.vim" }, -- test url + as
 
-    { "junegunn/fzf", run = vim.fn["fzf#install"] }, -- test run function
+    { "junegunn/fzf", build = vim.fn["fzf#install"] }, -- test build function
 
-    { "autozimu/LanguageClient-neovim", branch = "next", run = "bash install.sh" }, -- branch + run command
+    { "autozimu/LanguageClient-neovim", branch = "next", build = "bash install.sh" }, -- branch + build command
 }
 
 local function test_branch(paq, dir, branch)
