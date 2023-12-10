@@ -306,10 +306,10 @@ local function pull(pkg, counter, build_queue)
         if not ok then
             counter(pkg.name, Messages.update, "err")
         else
-            local cur_hash = pkg.hash
+            local cur_hash = get_git_hash(pkg.dir)
             if cur_hash ~= prev_hash then
                 log_update_changes(pkg, prev_hash, cur_hash)
-                pkg.status = Status.UPDATED
+                pkg.status, pkg.hash = Status.UPDATED, cur_hash
                 lock_write()
                 counter(pkg.name, Messages.update, "ok")
                 if pkg.build then
