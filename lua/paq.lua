@@ -537,6 +537,20 @@ function paq:setup(opts)
     return self
 end
 
+---Queries paq's packages storage with predefined
+---filters by passing one of the following strings:
+--- - "installed"
+--- - "to_install"
+--- - "to_update"
+---@param filter string
+function paq.query(filter)
+    vim.validate({ filter = { filter, { 'string' } } })
+    if not Filter[filter] then
+        error(string.format("No filter with name: %q", filter))
+    end
+    return vim.deepcopy(vim.tbl_filter(Filter[filter], Packages))
+end
+
 function paq.list()
     local installed = vim.tbl_filter(Filter.installed, Lock)
     local removed = vim.tbl_filter(Filter.removed, Lock)
