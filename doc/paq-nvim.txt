@@ -213,6 +213,15 @@ imported as `paq`, the functions are:
   }
 
 
+|paq.query|                                                        *paq-query*
+
+  Queries paq's packages storage with predefined
+  filters by passing one of the following strings:
+  - "installed"
+  - "to_install"
+  - "to_update"
+
+
 ==============================================================================
 PACKAGE OPTIONS                                                  *paq-options*
 
