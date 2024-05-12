@@ -2,7 +2,7 @@
 
 ---@alias Path string
 
-local uv = vim.loop
+local uv = vim.uv or vim.loop
 
 ---@class setup_opts
 ---@field path Path
