@@ -36,6 +36,12 @@ For Windows (cmd.exe):
 git clone https://github.com/savq/paq-nvim.git %LOCALAPPDATA%\nvim-data\site\pack\paqs\start\paq-nvim
 ```
 
+For Windows (powershell):
+
+```
+git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\start\paq-nvim"
+```
+
 To install Paq automatically or to install your plugins in `--headless` mode
 see the documentation section `:h paq-bootstrapping`.
 
