@@ -158,6 +158,38 @@ local function rmdir(dir)
     return uv.fs_rmdir(dir)
 end
 
+local function load_configs()
+    local function has_value (tab, val)
+        for index, value in ipairs(tab) do
+            if value == val then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local installed_package_names = {}
+
+    for k, v in pairs(vim.tbl_filter(Filter.installed, Packages)) do
+        table.insert(installed_package_names, v.name)
+    end
+
+    for k, v in pairs(Packages) do
+        if has_value(installed_package_names, v.name) then
+            if v.config then
+                local success, err = pcall(v.config)
+                if not success then
+                    vim.schedule(function()
+                        vim.api.nvim_notify('packer.nvim: Error running config for ' .. v.name .. ': ' .. err, vim.log.levels.ERROR, {})
+                    end)
+                end
+            end
+
+        end
+    end
+end
+
 
 -- }}}
 -- LOGGING: {{{
@@ -228,6 +260,7 @@ local function lock_write()
     local pkgs = vim.deepcopy(Packages)
     for p, _ in pairs(pkgs) do
         pkgs[p].build = nil
+        pkgs[p].config = nil
     end
     local file = uv.fs_open(Config.lock, "w", 438)
     if file then
@@ -468,6 +501,10 @@ local function exe_op(op, fn, pkgs, silent)
         if #build_queue ~= 0 then
             exe_op("build", run_build, build_queue)
         end
+        load_configs()
+        vim.defer_fn(function()
+            load_configs()
+        end, 100)
         vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
     end
 
@@ -626,19 +663,6 @@ do
         vim.deprecate("`PaqRunHook` command", "`PaqBuild`", "3.0", "Paq", false)
         run_build(Packages[a.args])
     end, build_cmd_opts)
-end
-
-local function load_configs()
-    for k, v in pairs(Packages) do
-        if v.config then
-            local success, err = pcall(v.config)
-            if not success then
-                vim.schedule(function()
-                    vim.api.nvim_notify('packer.nvim: Error running config for ' .. v.name .. ': ' .. err, vim.log.levels.ERROR, {})
-                end)
-            end
-        end
-    end
 end
 
 vim.api.nvim_create_autocmd("VimEnter", {
