@@ -275,6 +275,7 @@ end
 ---@field pin boolean
 ---@field build string | function
 ---@field url string
+---@field config function
 
 ---@param pkg Package
 ---@param counter function
@@ -418,6 +419,7 @@ local function register(pkg)
         pin = pkg.pin,
         build = pkg.build or pkg.run,
         url = url,
+        config = pkg.config,
     }
     if pkg.run then
         vim.deprecate("`run` option", "`build`", "3.0", "Paq", false)
@@ -625,6 +627,28 @@ do
         run_build(Packages[a.args])
     end, build_cmd_opts)
 end
+
+local function load_configs()
+    for k, v in pairs(Packages) do
+        if v.config then
+            local success, err = pcall(v.config)
+            if not success then
+                vim.schedule(function()
+                    vim.api.nvim_notify('packer.nvim: Error running config for ' .. v.name .. ': ' .. err, vim.log.levels.ERROR, {})
+                end)
+            end
+        end
+    end
+end
+
+vim.api.nvim_create_autocmd("VimEnter", {
+    callback = function()
+        load_configs()
+        vim.defer_fn(function()
+            load_configs()
+        end, 100)
+    end,
+})
 
 return paq
 
