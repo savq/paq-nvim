@@ -110,15 +110,12 @@ end
 ---@param print_stdout boolean?
 local function run(process, args, cwd, cb, print_stdout)
     local log = uv.fs_open(Config.log, "a+", 0x1A4)
-    local stderr = uv.new_pipe(false)
-    stderr:open(log)
     local handle, pid
     handle, pid = uv.spawn(
         process,
-        { args = args, cwd = cwd, stdio = { nil, print_stdout and stderr, stderr }, env = Env },
+        { args = args, cwd = cwd, stdio = { nil, print_stdout and log, log }, env = Env },
         vim.schedule_wrap(function(code)
             uv.fs_close(log)
-            stderr:close()
             handle:close()
             cb(code == 0)
         end)
