@@ -17,7 +17,7 @@ Paq is a Neovim package manager written in Lua.
 > If you are using a more recent version of neovim checkout the 'nightly' branch
 
 - git
-- [Neovim](https://github.com/neovim/neovim) ≥ 0.7
+- [Neovim](https://github.com/neovim/neovim) nightly
 
 
 ## Installation
@@ -27,20 +27,20 @@ Clone this repository.
 For Unix-like systems:
 
 ```sh
-git clone --depth=1 https://github.com/savq/paq-nvim.git \
+git clone --depth=1 --branch=nightly https://github.com/savq/paq-nvim.git \
     "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/pack/paqs/start/paq-nvim
 ```
 
 For Windows (cmd.exe):
 
 ```
-git clone https://github.com/savq/paq-nvim.git %LOCALAPPDATA%\nvim-data\site\pack\paqs\start\paq-nvim
+git clone --branch=nightly https://github.com/savq/paq-nvim.git %LOCALAPPDATA%\nvim-data\site\pack\paqs\start\paq-nvim
 ```
 
 For Windows (powershell):
 
 ```
-git clone https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\start\paq-nvim"
+git clone --branch=nightly https://github.com/savq/paq-nvim.git "$env:LOCALAPPDATA\nvim-data\site\pack\paqs\start\paq-nvim"
 ```
 
 To install Paq automatically or to install your plugins in `--headless` mode
