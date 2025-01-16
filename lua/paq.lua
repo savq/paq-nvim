@@ -297,7 +297,7 @@ end
 local function pull(pkg, counter, build_queue)
     local prev_hash = Lock[pkg.name] and Lock[pkg.name].hash or pkg.hash
     run(
-        { "git", "pull", "--recurse-submodules", "--update-shallow" },
+        { "git", "pull", "--tags", "--recurse-submodules", "--update-shallow" },
         { cwd = pkg.dir },
         function(ok)
             if not ok then
