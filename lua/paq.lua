@@ -12,14 +12,16 @@ local uv = vim.uv
 ---@field lock Path
 ---@field url_format string
 ---@field clone_args string[]
+---@field pull_args string[]
 local Config = {
-    path = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "site", "pack", "paqs"),
-    log = vim.fs.joinpath(vim.fn.stdpath("log") --[[@as string]], "paq.log"),
-    lock = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "paq-lock.json"),
     -- stylua: ignore
     clone_args = { "--depth=1", "--recurse-submodules", "--shallow-submodules", "--no-single-branch" },
-    url_format = "https://github.com/%s.git",
+    pull_args = { "--tags", "--recurse-submodules", "--update-shallow" },
+    lock = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "paq-lock.json"),
+    log = vim.fs.joinpath(vim.fn.stdpath("log") --[[@as string]], "paq.log"),
     opt = false,
+    path = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "site", "pack", "paqs"),
+    url_format = "https://github.com/%s.git",
     verbose = false,
 }
 
@@ -296,28 +298,24 @@ end
 ---@param build_queue table
 local function pull(pkg, counter, build_queue)
     local prev_hash = Lock[pkg.name] and Lock[pkg.name].hash or pkg.hash
-    run(
-        { "git", "pull", "--tags", "--recurse-submodules", "--update-shallow" },
-        { cwd = pkg.dir },
-        function(ok)
-            if not ok then
-                counter(pkg.name, Messages.update, "err")
-                return
-            end
-            local cur_hash = get_git_hash(pkg.dir)
-            if cur_hash == prev_hash then
-                counter(pkg.name, Messages.update, "nop")
-                return
-            end
-            log_update_changes(pkg, prev_hash, cur_hash)
-            pkg.status, pkg.hash = Status.UPDATED, cur_hash
-            lock_write()
-            counter(pkg.name, Messages.update, "ok")
-            if pkg.build then
-                table.insert(build_queue, pkg)
-            end
+    run(vim.list_extend({ "git", "pull" }, Config.pull_args), { cwd = pkg.dir }, function(ok)
+        if not ok then
+            counter(pkg.name, Messages.update, "err")
+            return
         end
-    )
+        local cur_hash = get_git_hash(pkg.dir)
+        if cur_hash == prev_hash then
+            counter(pkg.name, Messages.update, "nop")
+            return
+        end
+        log_update_changes(pkg, prev_hash, cur_hash)
+        pkg.status, pkg.hash = Status.UPDATED, cur_hash
+        lock_write()
+        counter(pkg.name, Messages.update, "ok")
+        if pkg.build then
+            table.insert(build_queue, pkg)
+        end
+    end)
 end
 
 ---@param pkg Package
