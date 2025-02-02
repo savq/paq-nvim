@@ -1,5 +1,3 @@
--- VARS: {{{
-
 ---@alias Path string
 
 local uv = vim.uv
@@ -57,9 +55,6 @@ local Filter = {
     to_move     = function(p) return p.status == Status.TO_MOVE end,
     to_reclone  = function(p) return p.status == Status.TO_RECLONE end,
 }
-
--- }}}
--- UTILS: {{{
 
 ---@return Package
 local function find_unlisted()
@@ -119,9 +114,6 @@ local function rmdir(path)
     return stat and rm(path, stat.type)
 end
 
--- }}}
--- LOGGING: {{{
-
 ---@param pkg Package
 ---@param prev_hash string
 ---@param cur_hash string
@@ -170,9 +162,6 @@ local function new_counter(total, callback)
     end)
 end
 
--- }}}
--- LOCKFILE: {{{
-
 local function lock_write()
     -- remove run key since can have a function in it, and
     -- json.encode doesn't support functions
@@ -212,9 +201,6 @@ local function lock_load()
         Lock = Packages
     end
 end
-
--- }}}
--- PKGS: {{{
 
 ---@class Package
 ---@field name string
@@ -434,9 +420,6 @@ local function exe_op(op, fn, pkgs, silent)
     vim.iter(pkgs):each(function(pkg) fn(pkg, counter, build_queue) end)
 end
 
--- }}}
--- DIFFS: {{{
-
 local function calculate_diffs()
     local diffs = {}
     for name, lock_pkg in pairs(Lock) do
@@ -456,9 +439,6 @@ local function calculate_diffs()
     end
     return diffs
 end
-
--- }}}
--- PUBLIC API: {{{
 
 local paq = {}
 
@@ -586,5 +566,4 @@ end
 
 return paq
 
--- }}}
--- vim: foldmethod=marker foldlevel=1
+-- vim: foldmethod=marker
