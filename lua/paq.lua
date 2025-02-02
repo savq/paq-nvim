@@ -58,12 +58,6 @@ local Filter = {
     to_reclone  = function(p) return p.status == Status.TO_RECLONE end,
 }
 
--- Copy environment variables once. Doing it for every process seems overkill.
-local Env = { "GIT_TERMINAL_PROMPT=0" }
-for var, val in pairs(uv.os_environ()) do
-    table.insert(Env, string.format("%s=%s", var, val))
-end
-
 -- }}}
 -- UTILS: {{{
 
@@ -100,36 +94,6 @@ local function get_git_hash(dir)
     return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:gsub("ref: ", "")))
 end
 
----@param args string[]
----@param opts table<string, any>
----@param cb function
-local function run(args, opts, cb)
-    local process = table.remove(args, 1)
-    local log = assert(uv.fs_open(Config.log, "a+", 0x1A4))
-    local stderr = assert(uv.new_pipe(false))
-    local options = {
-        args = args,
-        cwd = opts.cwd,
-        stdio = { nil, opts.print_stdout and stderr, stderr },
-        env = Env,
-    }
-    stderr:open(log)
-    local handle, pid
-    handle, pid = uv.spawn(
-        process,
-        options,
-        vim.schedule_wrap(function(code)
-            uv.fs_close(log)
-            stderr:close()
-            handle:close()
-            cb(code == 0)
-        end)
-    )
-    if not handle then
-        vim.notify((" Paq: Failed to spawn %s (%s)"):format(process, pid))
-    end
-end
-
 ---@param path string Path to remove
 ---@param type string type of path
 local function rm(path, type)
@@ -163,24 +127,17 @@ end
 ---@param cur_hash string
 local function log_update_changes(pkg, prev_hash, cur_hash)
     local output = { "\n\n" .. pkg.name .. " updated:\n" }
-    local stdout = assert(uv.new_pipe())
-    local options = {
-        args = { "log", "--pretty=format:* %s", prev_hash .. ".." .. cur_hash },
-        cwd = pkg.dir,
-        stdio = { nil, stdout, nil },
-    }
-    local handle
-    handle, _ = uv.spawn("git", options, function(code)
-        assert(code == 0, "Exited(" .. code .. ")")
-        handle:close()
-        local log = assert(uv.fs_open(Config.log, "a+", 0x1A4))
-        uv.fs_write(log, output, nil, function(_) end)
-        uv.fs_close(log)
-    end)
-    stdout:read_start(function(err, data)
-        assert(not err, err)
-        table.insert(output, data)
-    end)
+    vim.system(
+        { "git", "log", "--pretty=format:* %s", ("%s..%s"):format(prev_hash, cur_hash) },
+        { cwd = pkg.dir, text = true },
+        function(obj)
+            assert(obj.code == 0, "Exited(" .. obj.code .. ")")
+            local log = assert(uv.fs_open(Config.log, "a+", 0x1A4))
+            uv.fs_write(log, output, nil, function(_) end)
+            uv.fs_write(log, obj.stdout, nil, function(_) end)
+            uv.fs_close(log)
+        end
+    )
 end
 
 ---@param name string
@@ -200,10 +157,9 @@ end
 ---@param total integer
 ---@param callback function
 local function new_counter(total, callback)
-    return coroutine.wrap(function()
-        local c = { ok = 0, err = 0, nop = 0 }
+    local c = { ok = 0, err = 0, nop = 0 }
+    return vim.schedule_wrap(function(name, msg_op, result)
         while c.ok + c.err + c.nop < total do
-            local name, msg_op, result = coroutine.yield(true)
             c[result] = c[result] + 1
             if result ~= "nop" or Config.verbose then
                 report(name, msg_op, result, c.ok + c.nop, total)
@@ -281,7 +237,8 @@ local function clone(pkg, counter, build_queue)
         vim.list_extend(args, { "-b", pkg.branch })
     end
     table.insert(args, pkg.dir)
-    run(args, {}, function(ok)
+    vim.system(args, {}, function(obj)
+        local ok = obj.code == 0
         if ok then
             pkg.status = Status.CLONED
             lock_write()
@@ -298,24 +255,29 @@ end
 ---@param build_queue table
 local function pull(pkg, counter, build_queue)
     local prev_hash = Lock[pkg.name] and Lock[pkg.name].hash or pkg.hash
-    run(vim.list_extend({ "git", "pull" }, Config.pull_args), { cwd = pkg.dir }, function(ok)
-        if not ok then
-            counter(pkg.name, Messages.update, "err")
-            return
+    vim.system(
+        vim.list_extend({ "git", "pull" }, Config.pull_args),
+        { cwd = pkg.dir },
+        function(obj)
+            local ok = obj.code == 0
+            if not ok then
+                counter(pkg.name, Messages.update, "err")
+                return
+            end
+            local cur_hash = get_git_hash(pkg.dir)
+            if cur_hash == prev_hash then
+                counter(pkg.name, Messages.update, "nop")
+                return
+            end
+            log_update_changes(pkg, prev_hash, cur_hash)
+            pkg.status, pkg.hash = Status.UPDATED, cur_hash
+            lock_write()
+            counter(pkg.name, Messages.update, "ok")
+            if pkg.build then
+                table.insert(build_queue, pkg)
+            end
         end
-        local cur_hash = get_git_hash(pkg.dir)
-        if cur_hash == prev_hash then
-            counter(pkg.name, Messages.update, "nop")
-            return
-        end
-        log_update_changes(pkg, prev_hash, cur_hash)
-        pkg.status, pkg.hash = Status.UPDATED, cur_hash
-        lock_write()
-        counter(pkg.name, Messages.update, "ok")
-        if pkg.build then
-            table.insert(build_queue, pkg)
-        end
-    end)
+    )
 end
 
 ---@param pkg Package
@@ -356,10 +318,10 @@ local function run_build(pkg)
         for word in pkg.build:gmatch("%S+") do
             table.insert(args, word)
         end
-        run(
+        vim.system(
             args,
             { cwd = pkg.dir },
-            function(ok) report(pkg.name, Messages.build, ok and "ok" or "err") end
+            function(obj) report(pkg.name, Messages.build, obj.code == 0 and "ok" or "err") end
         )
     end
 end
@@ -375,8 +337,8 @@ local function reclone(pkg, _, build_queue)
         vim.list_extend(args, { "-b", pkg.branch })
     end
     table.insert(args, pkg.dir)
-    run(args, {}, function(ok)
-        if ok then
+    vim.system(args, {}, function(obj)
+        if obj.code == 0 then
             pkg.status = Status.INSTALLED
             pkg.hash = get_git_hash(pkg.dir)
             lock_write()
@@ -468,7 +430,6 @@ local function exe_op(op, fn, pkgs, silent)
     end
 
     local counter = new_counter(#pkgs, after)
-    counter() -- Initialize counter
 
     vim.iter(pkgs):each(function(pkg) fn(pkg, counter, build_queue) end)
 end
