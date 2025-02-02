@@ -150,14 +150,16 @@ end
 local function new_counter(total, callback)
     local c = { ok = 0, err = 0, nop = 0 }
     return vim.schedule_wrap(function(name, msg_op, result)
-        while c.ok + c.err + c.nop < total do
+        if c.ok + c.err + c.nop < total then
             c[result] = c[result] + 1
             if result ~= "nop" or Config.verbose then
                 report(name, msg_op, result, c.ok + c.nop, total)
             end
         end
-        callback(c.ok, c.err, c.nop)
-        return true
+
+        if c.ok + c.err + c.nop == total then
+            callback(c.ok, c.err, c.nop)
+        end
     end)
 end
 
