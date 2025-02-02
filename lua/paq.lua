@@ -413,7 +413,10 @@ local function exe_op(op, fn, pkgs, silent)
         if #build_queue ~= 0 then
             exe_op("build", run_build, build_queue)
         end
-        vim.cmd("doautocmd User PaqDone" .. op:gsub("^%l", string.upper))
+
+        vim.api.nvim_exec_autocmds("User", {
+            pattern = "PaqDone" .. op:gsub("^%l", string.upper),
+        })
     end
 
     local counter = new_counter(#pkgs, after)
