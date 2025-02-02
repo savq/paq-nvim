@@ -118,15 +118,14 @@ end
 ---@param prev_hash string
 ---@param cur_hash string
 local function log_update_changes(pkg, prev_hash, cur_hash)
-    local output = { "\n\n" .. pkg.name .. " updated:\n" }
+    local output = "\n\n" .. pkg.name .. " updated:\n"
     vim.system(
         { "git", "log", "--pretty=format:* %s", ("%s..%s"):format(prev_hash, cur_hash) },
         { cwd = pkg.dir, text = true },
         function(obj)
             assert(obj.code == 0, "Exited(" .. obj.code .. ")")
             local log = assert(uv.fs_open(Config.log, "a+", 0x1A4))
-            uv.fs_write(log, output, nil, function(_) end)
-            uv.fs_write(log, obj.stdout, nil, function(_) end)
+            uv.fs_write(log, output .. obj.stdout)
             uv.fs_close(log)
         end
     )
