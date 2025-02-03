@@ -56,6 +56,22 @@ local Filter = {
     to_reclone  = function(p) return p.status == Status.TO_RECLONE end,
 }
 
+local function file_write(path, flags, data)
+    local err_msg = "Failed to %s '" .. path .. "'"
+    local file = assert(uv.fs_open(path, flags, 0x1A4), err_msg:format("open"))
+    assert(uv.fs_write(file, data), err_msg:format("write"))
+    assert(uv.fs_close(file), err_msg:format("close"))
+end
+
+local function file_read(path)
+    local err_msg = "Failed to %s '" .. path .. "'"
+    local file = assert(uv.fs_open(path, "r", 0x1A4), err_msg:format("open"))
+    local stat = assert(uv.fs_stat(path), err_msg:format("get stats for"))
+    local data = assert(uv.fs_read(file, stat.size, 0), err_msg:format("read"))
+    assert(uv.fs_close(file), err_msg:format("close"))
+    return data
+end
+
 ---@return Package
 local function find_unlisted()
     local unlisted = {}
@@ -78,13 +94,8 @@ end
 ---@return string
 local function get_git_hash(dir)
     local first_line = function(path)
-        local file = uv.fs_open(path, "r", 438)
-        if file then
-            local stat = assert(uv.fs_fstat(file))
-            local data = assert(uv.fs_read(file, stat.size, 0))
-            uv.fs_close(file)
-            return vim.split(data, "\n")[1]
-        end
+        local data = file_read(path)
+        return vim.split(data, "\n")[1]
     end
     local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
     return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:sub(6, -1)))
@@ -119,15 +130,17 @@ end
 ---@param prev_hash string
 ---@param cur_hash string
 local function log_update_changes(pkg, prev_hash, cur_hash)
-    local output = "\n\n" .. pkg.name .. " updated:\n"
     vim.system(
         { "git", "log", "--pretty=format:* %s", ("%s..%s"):format(prev_hash, cur_hash) },
         { cwd = pkg.dir, text = true },
         function(obj)
-            assert(obj.code == 0, "Exited(" .. obj.code .. ")")
-            local log = assert(uv.fs_open(Config.log, "a+", 0x1A4))
-            uv.fs_write(log, output .. obj.stdout)
-            uv.fs_close(log)
+            if obj.code ~= 0 then
+                local msg = "failed to execute git log into %q (code %d):\n%s"
+                file_write(Config.log, "a+", msg:format(pkg.dir, obj.code, obj.stderr))
+                return
+            end
+            local output = "\n\n%s updated:\n%s"
+            file_write(Config.log, "a+", output:format(pkg.name, obj.stdout))
         end
     )
 end
@@ -171,25 +184,18 @@ local function lock_write()
     for p, _ in pairs(pkgs) do
         pkgs[p].build = nil
     end
-    local file = uv.fs_open(Config.lock, "w", 438)
-    if file then
-        local ok, result = pcall(vim.json.encode, pkgs)
-        if not ok then
-            error(result)
-        end
-        assert(uv.fs_write(file, result))
-        assert(uv.fs_close(file))
+    local ok, result = pcall(vim.json.encode, pkgs)
+    if not ok then
+        error(result)
     end
+    -- Ignore if fail
+    pcall(file_write, Config.lock, "w", result)
     Lock = Packages
 end
 
 local function lock_load()
-    -- don't really know why 438 see ':h uv_fs_t'
-    local file = uv.fs_open(Config.lock, "r", 438)
-    if file then
-        local stat = assert(uv.fs_fstat(file))
-        local data = assert(uv.fs_read(file, stat.size, 0))
-        assert(uv.fs_close(file))
+    local exists, data = pcall(file_read, Config.lock)
+    if exists then
         local ok, result = pcall(vim.json.decode, data)
         if ok then
             Lock = not vim.tbl_isempty(result) and result or Packages
@@ -253,7 +259,10 @@ local function pull(pkg, counter, build_queue)
                 return
             end
             local cur_hash = get_git_hash(pkg.dir)
-            if cur_hash == prev_hash then
+            -- It can happen that the user has deleted manually a directory.
+            -- Thus the pkg.hash is left blank and we need to update it.
+            if cur_hash == prev_hash or prev_hash == "" then
+                pkg.hash = cur_hash
                 counter(pkg.name, Messages.update, "nop")
                 return
             end
@@ -351,21 +360,26 @@ local function register(pkg)
         ---@diagnostic disable-next-line: missing-fields
         pkg = { pkg }
     end
+
     local url = pkg.url
         or (pkg[1]:match("^https?://") and pkg[1]) -- [1] is a URL
         or string.format(Config.url_format, pkg[1]) -- [1] is a repository name
+
     local name = pkg.as or url:gsub("%.git$", ""):match("/([%w-_.]+)$") -- Infer name from `url`
     if not name then
         return vim.notify(" Paq: Failed to parse " .. vim.inspect(pkg), vim.log.levels.ERROR)
     end
     local opt = pkg.opt or Config.opt and pkg.opt == nil
     local dir = vim.fs.joinpath(Config.path, (opt and "opt" or "start"), name)
+    local ok, hash = pcall(get_git_hash, dir)
+    hash = ok and hash or ""
+
     Packages[name] = {
         name = name,
         branch = pkg.branch,
         dir = dir,
         status = uv.fs_stat(dir) and Status.INSTALLED or Status.TO_INSTALL,
-        hash = get_git_hash(dir),
+        hash = hash,
         pin = pkg.pin,
         build = pkg.build,
         url = url,
