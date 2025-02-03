@@ -78,11 +78,12 @@ end
 ---@return string
 local function get_git_hash(dir)
     local first_line = function(path)
-        local file = io.open(path)
+        local file = uv.fs_open(path, "r", 438)
         if file then
-            local line = file:read()
-            file:close()
-            return line
+            local stat = assert(uv.fs_fstat(file))
+            local data = assert(uv.fs_read(file, stat.size, 0))
+            uv.fs_close(file)
+            return vim.split(data, "\n")[1]
         end
     end
     local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
