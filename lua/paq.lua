@@ -86,7 +86,7 @@ local function get_git_hash(dir)
         end
     end
     local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
-    return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:gsub("ref: ", "")))
+    return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:sub(6, -1)))
 end
 
 ---@param path string Path to remove
