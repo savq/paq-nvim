@@ -253,9 +253,10 @@ local function pull(pkg, counter, build_queue)
         vim.list_extend({ "git", "pull" }, Config.pull_args),
         { cwd = pkg.dir },
         function(obj)
-            local ok = obj.code == 0
-            if not ok then
+            if obj.code ~= 0 then
                 counter(pkg.name, Messages.update, "err")
+                local errmsg = ("Failed to update %s:\n%s"):format(pkg.name, obj.stderr)
+                file_write(Config.log, "a+", errmsg)
                 return
             end
             local cur_hash = get_git_hash(pkg.dir)
