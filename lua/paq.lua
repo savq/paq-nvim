@@ -135,8 +135,12 @@ local function log_update_changes(pkg, prev_hash, cur_hash)
         { cwd = pkg.dir, text = true },
         function(obj)
             if obj.code ~= 0 then
-                local msg = "failed to execute git log into %q (code %d):\n%s"
-                file_write(Config.log, "a+", msg:format(pkg.dir, obj.code, obj.stderr))
+                local msg = ("failed to execute git log into %q (code %d):\n%s"):format(
+                    pkg.dir,
+                    obj.code,
+                    obj.stderr
+                )
+                file_write(Config.log, "a+", msg)
                 return
             end
             local output = "\n\n%s updated:\n%s"
