@@ -14,7 +14,8 @@ local uv = vim.uv
 local Config = {
     -- stylua: ignore
     clone_args = { "--depth=1", "--recurse-submodules", "--shallow-submodules", "--no-single-branch" },
-    pull_args = { "--tags", "--recurse-submodules", "--update-shallow" },
+    -- Using '--tags --force' means conflicting tags will be synced with remote
+    pull_args = { "--tags", "--force", "--recurse-submodules", "--update-shallow" },
     lock = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "paq-lock.json"),
     log = vim.fs.joinpath(vim.fn.stdpath("log") --[[@as string]], "paq.log"),
     opt = false,
