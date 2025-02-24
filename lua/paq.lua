@@ -539,7 +539,7 @@ end
 
 function paq.log_open()
     vim.cmd.split(Config.log)
-    vim.cmd("silent! normal G")
+    vim.cmd("silent! normal! G")
 end
 
 function paq.log_clean()
