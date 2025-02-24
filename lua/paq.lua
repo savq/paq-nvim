@@ -537,7 +537,10 @@ function paq.list()
     end
 end
 
-function paq.log_open() vim.cmd.split(Config.log) end
+function paq.log_open()
+    vim.cmd.split(Config.log)
+    vim.cmd("silent! normal G")
+end
 
 function paq.log_clean()
     return assert(uv.fs_unlink(Config.log)) and vim.notify(" Paq: log file deleted")
