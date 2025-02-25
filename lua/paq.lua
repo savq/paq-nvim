@@ -441,6 +441,9 @@ local function exe_op(op, fn, pkgs, silent)
         vim.api.nvim_exec_autocmds("User", {
             pattern = "PaqDone" .. op:gsub("^%l", string.upper),
         })
+
+        -- This makes the logfile reload if there were changes while the job was running
+        vim.cmd("silent! checktime")
     end
 
     local counter = new_counter(#pkgs, after)
