@@ -324,7 +324,7 @@ local function run_build(pkg)
         vim.system(
             args,
             { cwd = pkg.dir },
-            function(obj) report(pkg.name, Messages.build, obj.code == 0 and "ok" or "err") end
+            vim.schedule_wrap(function(obj) report(pkg.name, Messages.build, obj.code == 0 and "ok" or "err") end)
         )
     end
 end
