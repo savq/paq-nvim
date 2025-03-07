@@ -443,7 +443,7 @@ local function exe_op(op, fn, pkgs, silent)
         })
 
         -- This makes the logfile reload if there were changes while the job was running
-        vim.cmd("silent! checktime " .. Config.log)
+        vim.cmd("silent! checktime " .. vim.fn.fnameescape(Config.log))
     end
 
     local counter = new_counter(#pkgs, after)
