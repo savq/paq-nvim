@@ -12,13 +12,15 @@ Paq is a Neovim package manager written in Lua.
 
 ## Requirements
 
-> **NOTE**
-> Paq follows the [Neovim version available in Debian stable](https://packages.debian.org/stable/editors/neovim).
-> If you are using a more recent version of neovim checkout the 'nightly' branch
-
 - git
-- [Neovim](https://github.com/neovim/neovim) ≥ 0.7
+- [Neovim](https://github.com/neovim/neovim) latest stable
 
+> [!NOTE]
+> If your are using older versions of neovim, such as the one present in debian
+> stable, you need to use the debian branch.
+> 
+> The debian branch is not subject of backports so if you experience any bugs
+> you need to upgrade your neovim version.
 
 ## Installation
 
@@ -28,6 +30,13 @@ For Unix-like systems:
 
 ```sh
 git clone --depth=1 https://github.com/savq/paq-nvim.git \
+    "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/pack/paqs/start/paq-nvim
+```
+
+For Debian Stable:
+
+```sh
+git clone --depth=1 --branch=debian https://github.com/savq/paq-nvim.git \
     "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/pack/paqs/start/paq-nvim
 ```
 
@@ -54,11 +63,8 @@ In your init.lua, `require` the `"paq"` module with a list of packages, like:
 ```lua
 require "paq" {
     "savq/paq-nvim", -- Let Paq manage itself
-
     "neovim/nvim-lspconfig",
-
     { "lervag/vimtex", opt = true }, -- Use braces when passing options
-
     { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate' },
 }
 ```
