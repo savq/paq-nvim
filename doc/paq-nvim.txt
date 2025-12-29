@@ -132,6 +132,12 @@ imported as `paq`, the functions are:
   for other debugging purposes.
 
 
+|PaqWait|                                                           *:PaqWait*
+  Waits for any previous Paq operations to complete before continuing.
+  This is useful in scripts or autocommands where you need to ensure that
+  all package operations have finished before proceeding.
+
+
 |paq.list|                                                          *paq.list*
                                                                   *:PaqList*
   Lists installed packages as well as packages that were recently removed.

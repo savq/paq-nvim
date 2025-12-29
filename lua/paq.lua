@@ -598,6 +598,17 @@ do
                 :totable()
         end,
     })
+
+    -- Paq operations are async by default, which is good but hard to script with.
+    vim.api.nvim_create_user_command("PaqWait", function()
+        local done = false
+        vim.api.nvim_create_autocmd("User", {
+            pattern = "PaqDone*",
+            once = true,
+            callback = function() done = true end,
+        })
+        vim.wait(120000, function() return done end, 100)
+    end, { bar = true })
 end
 
 return paq
