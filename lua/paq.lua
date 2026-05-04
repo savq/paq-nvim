@@ -93,13 +93,19 @@ end
 
 ---@param dir Path
 ---@return string
-local function get_git_hash(dir)
-    local first_line = function(path)
-        local data = file_read(path)
-        return vim.split(data, "\n")[1]
-    end
-    local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
-    return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:sub(6, -1)))
+local function get_git_hash(dir, ok_hash_callback)
+     vim.system(
+        {"git", "-C", dir, "rev-parse", "HEAD"},
+        { text = true },
+        function(obj)
+            if obj.code == 0 then
+                ok_hash_callback(true, obj.stdout:sub(1, -2))
+            else
+                vim.notify("Paq: Failed to get hash for HEAD at " .. dir .. ": " .. obj.stderr)
+                ok_hash_callback(false, "")
+            end
+        end
+    )
 end
 
 ---@param path string Path to remove
@@ -264,21 +270,26 @@ local function pull(pkg, counter, build_queue)
                 file_write(Config.log, "a+", errmsg)
                 return
             end
-            local cur_hash = get_git_hash(pkg.dir)
-            -- It can happen that the user has deleted manually a directory.
-            -- Thus the pkg.hash is left blank and we need to update it.
-            if cur_hash == prev_hash or prev_hash == "" then
-                pkg.hash = cur_hash
-                counter(pkg.name, Messages.update, "nop")
-                return
-            end
-            log_update_changes(pkg, prev_hash, cur_hash)
-            pkg.status, pkg.hash = Status.UPDATED, cur_hash
-            lock_write()
-            counter(pkg.name, Messages.update, "ok")
-            if pkg.build then
-                table.insert(build_queue, pkg)
-            end
+            get_git_hash(
+                pkg.dir,
+                function(ok, cur_hash)
+                    -- It can happen that the user has deleted manually a directory.
+                    -- Thus the pkg.hash is left blank and we need to update it.
+                    if cur_hash == prev_hash or prev_hash == "" then
+                        pkg.hash = cur_hash
+                        counter(pkg.name, Messages.update, "nop")
+                        return
+                    end
+                    log_update_changes(pkg, prev_hash, cur_hash)
+                    pkg.status, pkg.hash = Status.UPDATED, cur_hash
+                    lock_write()
+                    counter(pkg.name, Messages.update, "ok")
+                    if pkg.build then
+                        table.insert(build_queue, pkg)
+                    end
+
+                end
+            )
         end
     )
 end
@@ -345,11 +356,16 @@ local function reclone(pkg, _, build_queue)
     vim.system(args, {}, function(obj)
         if obj.code == 0 then
             pkg.status = Status.INSTALLED
-            pkg.hash = get_git_hash(pkg.dir)
-            lock_write()
-            if pkg.build then
-                table.insert(build_queue, pkg)
-            end
+            get_git_hash(
+                pkg.dir,
+                function(ok, cur_hash)
+                    pkg.hash = cur_hash
+                    lock_write()
+                    if pkg.build then
+                        table.insert(build_queue, pkg)
+                    end
+                end
+            )
         end
     end)
 end
@@ -379,19 +395,21 @@ local function register(pkg)
     end
     local opt = pkg.opt or Config.opt and pkg.opt == nil
     local dir = vim.fs.joinpath(Config.path, (opt and "opt" or "start"), name)
-    local ok, hash = pcall(get_git_hash, dir)
-    hash = ok and hash or ""
-
-    Packages[name] = {
-        name = name,
-        branch = pkg.branch,
-        dir = dir,
-        status = uv.fs_stat(dir) and Status.INSTALLED or Status.TO_INSTALL,
-        hash = hash,
-        pin = pkg.pin,
-        build = pkg.build,
-        url = url,
-    }
+    get_git_hash(
+        dir,
+        function(ok, hash)
+            Packages[name] = {
+                name = name,
+                branch = pkg.branch,
+                dir = dir,
+                status = uv.fs_stat(dir) and Status.INSTALLED or Status.TO_INSTALL,
+                hash = hash,
+                pin = pkg.pin,
+                build = pkg.build,
+                url = url,
+            }
+        end
+    )
 end
 
 ---@param pkg Package
