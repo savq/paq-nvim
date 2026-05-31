@@ -98,8 +98,43 @@ local function get_git_hash(dir)
         local data = file_read(path)
         return vim.split(data, "\n")[1]
     end
-    local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
-    return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:sub(6, -1)))
+
+    local head_path = vim.fs.joinpath(dir, ".git", "HEAD")
+    local ok_head, head_ref = pcall(first_line, head_path)
+    if ok_head and head_ref then
+        head_ref = vim.trim(head_ref)
+        if not head_ref:match("^ref: ") then
+            if #head_ref == 40 or #head_ref == 64 then
+                return head_ref
+            end
+        else
+            local ref = vim.trim(head_ref:sub(6))
+            local ref_path = vim.fs.joinpath(dir, ".git", ref)
+            local ok_ref, hash = pcall(first_line, ref_path)
+            if ok_ref and hash then
+                hash = vim.trim(hash)
+                if #hash == 40 or #hash == 64 then
+                    return hash
+                end
+            end
+            local packed_path = vim.fs.joinpath(dir, ".git", "packed-refs")
+            local ok_packed, packed_data = pcall(file_read, packed_path)
+            if ok_packed and packed_data then
+                for line in string.gmatch(packed_data, "[^\r\n]+") do
+                    local h, r = string.match(line, "^([%x]+)%s+(.+)$")
+                    if h and r == ref then
+                        return h
+                    end
+                end
+            end
+        end
+    end
+
+    local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = dir, text = true }):wait()
+    if obj.code == 0 then
+        return vim.trim(obj.stdout)
+    end
+    error("Failed to get git hash for " .. dir)
 end
 
 ---@param path string Path to remove
