@@ -292,7 +292,7 @@ local function pull(pkg, counter, build_queue)
     vim.system(
         vim.list_extend({ "git", "pull" }, Config.pull_args),
         { cwd = pkg.dir },
-        function(obj)
+        vim.schedule_wrap(function(obj)
             if obj.code ~= 0 then
                 counter(pkg.name, Messages.update, "err")
                 local errmsg = ("\nFailed to update %s:\n%s\n"):format(pkg.name, obj.stderr)
@@ -314,7 +314,7 @@ local function pull(pkg, counter, build_queue)
             if pkg.build then
                 table.insert(build_queue, pkg)
             end
-        end
+        end)
     )
 end
 
@@ -377,7 +377,7 @@ local function reclone(pkg, _, build_queue)
         vim.list_extend(args, { "-b", pkg.branch })
     end
     table.insert(args, pkg.dir)
-    vim.system(args, {}, function(obj)
+    vim.system(args, {}, vim.schedule_wrap(function(obj)
         if obj.code == 0 then
             pkg.status = Status.INSTALLED
             pkg.hash = get_git_hash(pkg.dir)
@@ -386,7 +386,7 @@ local function reclone(pkg, _, build_queue)
                 table.insert(build_queue, pkg)
             end
         end
-    end)
+    end))
 end
 
 local function resolve(pkg, counter, build_queue)
