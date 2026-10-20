@@ -99,7 +99,18 @@ local function get_git_hash(dir)
         return vim.split(data, "\n")[1]
     end
     local head_ref = first_line(vim.fs.joinpath(dir, ".git", "HEAD"))
-    return head_ref and first_line(vim.fs.joinpath(dir, ".git", head_ref:sub(6, -1)))
+    local ref = head_ref:sub(6, -1)
+    local ok, hash = pcall(first_line, vim.fs.joinpath(dir, ".git", ref))
+    if ok then
+        return hash
+    end
+    -- Once git gc or git pack-refs has run, the branch is only listed in packed-refs
+    for line in vim.gsplit(file_read(vim.fs.joinpath(dir, ".git", "packed-refs")), "\n") do
+        local packed_hash, packed_ref = line:match("^(%x+) (.+)$")
+        if packed_ref == ref then
+            return packed_hash
+        end
+    end
 end
 
 ---@param path string Path to remove
